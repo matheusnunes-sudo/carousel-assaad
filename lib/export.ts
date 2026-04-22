@@ -180,7 +180,28 @@ async function renderSlideToCanvas(
   ctx.fillText(profile.handle, textX, cursorY + (profile.displayName ? 68 : 46));
   ctx.globalAlpha = 1;
 
-  cursorY += avatarSize + 96;
+  const headerBottom = cursorY + avatarSize + 96;
+
+  // --- Pre-calculate content block height for vertical centering ---
+  const titleLineHeight = sizes.title * 1.2;
+  const bodyLineHeight = sizes.body * 1.65;
+  const footerZoneHeight = sizes.footer * 2 + 32; // space reserved for footer row
+  const contentAreaTop = headerBottom;
+  const contentAreaBottom = h - pad - footerZoneHeight;
+  const contentAreaHeight = contentAreaBottom - contentAreaTop;
+
+  ctx.font = getFontCSS(font, 700, sizes.title);
+  const titleLines = slide.title ? wrapText(ctx, slide.title, contentWidth) : [];
+
+  ctx.font = getFontCSS(font, 400, sizes.body);
+  const bodyLines = slide.body ? wrapText(ctx, slide.body, contentWidth) : [];
+
+  const titleBlockHeight = titleLines.length > 0 ? titleLines.length * titleLineHeight + 48 : 0;
+  const bodyBlockHeight = bodyLines.length * bodyLineHeight;
+  const totalContentHeight = titleBlockHeight + bodyBlockHeight;
+
+  // Start Y centered within the available area
+  cursorY = contentAreaTop + Math.max(0, (contentAreaHeight - totalContentHeight) / 2);
 
   // --- Main content ---
   ctx.fillStyle = style.textColor;
@@ -188,11 +209,9 @@ async function renderSlideToCanvas(
   const textX2 = textAlign === "center" ? w / 2 : pad;
 
   // Title
-  if (slide.title) {
+  if (titleLines.length > 0) {
     ctx.font = getFontCSS(font, 700, sizes.title);
     ctx.textBaseline = "top";
-    const titleLines = wrapText(ctx, slide.title, contentWidth);
-    const titleLineHeight = sizes.title * 1.2;
     for (const line of titleLines) {
       ctx.fillText(line, textX2, cursorY);
       cursorY += titleLineHeight;
@@ -201,12 +220,10 @@ async function renderSlideToCanvas(
   }
 
   // Body
-  if (slide.body) {
+  if (bodyLines.length > 0) {
     ctx.font = getFontCSS(font, 400, sizes.body);
     ctx.textBaseline = "top";
-    if (slide.title) ctx.globalAlpha = 0.9;
-    const bodyLines = wrapText(ctx, slide.body, contentWidth);
-    const bodyLineHeight = sizes.body * 1.65;
+    if (titleLines.length > 0) ctx.globalAlpha = 0.9;
     for (const line of bodyLines) {
       ctx.fillText(line, textX2, cursorY);
       cursorY += bodyLineHeight;
