@@ -1,0 +1,150 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Assaad Primary */
+  --assaad-primary: #4F5FE6;
+  --assaad-primary-light: #7B8CF8;
+  --assaad-primary-bg: #E8EAFD;
+  --assaad-primary-dark: #3A48B5;
+
+  /* Accents */
+  --assaad-orange: #F97316;
+  --assaad-magenta: #E91E63;
+  --assaad-teal: #00BFA5;
+  --assaad-red: #EF4444;
+  --assaad-green: #22C55E;
+  --assaad-purple: #8B5CF6;
+
+  /* Neutrals */
+  --assaad-white: #FFFFFF;
+  --assaad-gray-50: #F7F7F8;
+  --assaad-gray-200: #E5E7EB;
+  --assaad-gray-500: #6B7280;
+  --assaad-dark: #111827;
+  --assaad-sidebar-dark: #1A1A2E;
+
+  /* Gradients */
+  --assaad-gradient-primary: linear-gradient(90deg, #4F5FE6, #7B8CF8);
+  --assaad-gradient-level: linear-gradient(135deg, #F97316, #EF4444);
+
+  /* Shadows */
+  --assaad-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --assaad-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background-color: var(--assaad-gray-50);
+  color: var(--assaad-dark);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 font-medium text-sm text-white px-6 py-2.5 rounded-lg border-none transition-colors duration-200 cursor-pointer;
+    background: var(--assaad-primary);
+  }
+  .btn-primary:hover {
+    background: var(--assaad-primary-dark);
+  }
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 font-medium text-sm px-6 py-2.5 rounded-lg transition-all duration-200 cursor-pointer;
+    color: var(--assaad-primary);
+    border: 1.5px solid var(--assaad-primary);
+    background: transparent;
+  }
+  .btn-outline:hover {
+    background: var(--assaad-primary-bg);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 font-medium text-sm px-4 py-2 rounded-lg transition-all duration-200 cursor-pointer;
+    color: var(--assaad-gray-500);
+    background: transparent;
+  }
+  .btn-ghost:hover {
+    background: var(--assaad-gray-200);
+    color: var(--assaad-dark);
+  }
+
+  .card {
+    @apply bg-white rounded-xl p-4 transition-shadow duration-200;
+    border: 1px solid var(--assaad-gray-200);
+    box-shadow: var(--assaad-shadow-card);
+  }
+  .card:hover {
+    box-shadow: var(--assaad-shadow-hover);
+  }
+  .card.selected {
+    border: 2px solid var(--assaad-primary);
+  }
+
+  .tab {
+    @apply px-4 py-1.5 rounded-pill text-sm font-medium transition-all duration-200 cursor-pointer;
+    color: var(--assaad-gray-500);
+    background: var(--assaad-gray-50);
+  }
+  .tab.active {
+    background: var(--assaad-primary);
+    color: white;
+  }
+
+  .input-base {
+    @apply w-full text-sm px-3 py-2 rounded-lg outline-none transition-all duration-200;
+    border: 1.5px solid var(--assaad-gray-200);
+    background: white;
+    color: var(--assaad-dark);
+  }
+  .input-base:focus {
+    border-color: var(--assaad-primary);
+    box-shadow: 0 0 0 3px rgba(79, 95, 230, 0.1);
+  }
+
+  .label {
+    @apply text-xs font-medium mb-1 block;
+    color: var(--assaad-gray-500);
+  }
+
+  .section-title {
+    @apply text-xs font-semibold uppercase tracking-wider mb-3;
+    color: var(--assaad-gray-500);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--assaad-gray-200);
+    border-radius: 2px;
+  }
+}
