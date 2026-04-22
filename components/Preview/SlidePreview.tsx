@@ -252,7 +252,7 @@ export function SlidePreviewScaled({
   profile,
   index,
   total,
-  scale,
+  scale = 1,
   onClick,
   isActive,
 }: SlidePreviewProps & { onClick?: () => void; isActive?: boolean }) {
