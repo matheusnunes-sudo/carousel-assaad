@@ -8,6 +8,7 @@ import TemplateSelector from "@/components/Editor/TemplateSelector";
 import ProfileEditor from "@/components/Editor/ProfileEditor";
 import CarouselPreview from "@/components/Preview/CarouselPreview";
 import { ExportAllButton } from "@/components/Export/ExportButton";
+import ExportLayer from "@/components/Export/ExportLayer";
 import clsx from "clsx";
 
 type EditorTab = "slides" | "style" | "profile" | "templates";
@@ -98,6 +99,8 @@ export default function HomePage() {
           </div>
         </main>
       </div>
+
+      <ExportLayer />
 
       {/* Footer */}
       <footer

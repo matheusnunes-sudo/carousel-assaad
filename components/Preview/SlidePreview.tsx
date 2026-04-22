@@ -3,7 +3,6 @@
 import { CSSProperties, forwardRef } from "react";
 import type { Slide, CarouselStyle, UserProfile } from "@/types/carousel";
 import { FONT_SIZE_MAP, FONT_FAMILY_MAP } from "@/types/carousel";
-import { getSlideElementId } from "@/lib/export";
 
 interface SlidePreviewProps {
   slide: Slide;
@@ -12,10 +11,11 @@ interface SlidePreviewProps {
   index: number;
   total: number;
   scale?: number;
+  exportId?: string; // only set on the off-screen ExportLayer instance
 }
 
 const SlidePreview = forwardRef<HTMLDivElement, SlidePreviewProps>(
-  ({ slide, style, profile, index, total, scale = 1 }, _ref) => {
+  ({ slide, style, profile, index, total, scale = 1, exportId }, _ref) => {
     const { width, height } = style.dimensions;
     const fontSizes = FONT_SIZE_MAP[style.fontSize];
     const fontFamily = FONT_FAMILY_MAP[style.fontFamily];
@@ -39,7 +39,7 @@ const SlidePreview = forwardRef<HTMLDivElement, SlidePreviewProps>(
 
     return (
       <div
-        id={getSlideElementId(slide.id)}
+        id={exportId}
         style={containerStyle}
       >
         {/* Assaad brand decoration */}
