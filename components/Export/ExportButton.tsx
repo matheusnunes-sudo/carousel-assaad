@@ -2,17 +2,18 @@
 
 import { useState } from "react";
 import { useCarouselStore } from "@/lib/store";
-import { exportSlide, exportAllSlides, getSlideElementId } from "@/lib/export";
+import { exportSlide, exportAllSlides } from "@/lib/export";
 import Button from "@/components/ui/Button";
 
-export function ExportSingleButton({ slideId, index }: { slideId: string; index: number }) {
+export function ExportSingleButton({ index }: { index: number }) {
+  const { slides, style, profile } = useCarouselStore();
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
     setLoading(true);
     try {
       const padded = String(index + 1).padStart(2, "0");
-      await exportSlide(getSlideElementId(slideId), `slide-${padded}.png`);
+      await exportSlide(slides[index], style, profile, index, slides.length, `slide-${padded}.png`);
     } catch (err) {
       console.error("Erro ao exportar slide:", err);
     } finally {
@@ -34,7 +35,7 @@ export function ExportSingleButton({ slideId, index }: { slideId: string; index:
 }
 
 export function ExportAllButton() {
-  const { slides } = useCarouselStore();
+  const { slides, style, profile } = useCarouselStore();
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -42,8 +43,7 @@ export function ExportAllButton() {
     setLoading(true);
     setProgress(0);
     try {
-      const slideIds = slides.map((s) => s.id);
-      await exportAllSlides(slideIds, (current, total) => {
+      await exportAllSlides(slides, style, profile, (current, total) => {
         setProgress(Math.round((current / total) * 100));
       });
     } catch (err) {
