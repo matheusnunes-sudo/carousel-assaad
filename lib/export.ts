@@ -6,26 +6,31 @@ const PNG_OPTIONS = {
   pixelRatio: 2,
   quality: 1,
   cacheBust: true,
-  skipFonts: false,
+  skipFonts: true, // avoids CORS failure fetching Google Fonts at capture time
 };
 
-// html-to-image fails to embed external fonts on the first call due to CORS.
-// Calling twice ensures fonts are cached and the second render is complete.
-async function capturePng(node: HTMLElement): Promise<string> {
-  await toPng(node, PNG_OPTIONS); // warm up font cache
-  return toPng(node, PNG_OPTIONS);
+// Converts a base64 data URL to Blob without using fetch() (which can be
+// blocked by CSP on hosted environments like Vercel).
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, base64] = dataUrl.split(",");
+  const mimeMatch = header.match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : "image/png";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
 }
 
 export async function exportSlide(elementId: string, filename: string): Promise<void> {
   const node = document.getElementById(elementId);
   if (!node) throw new Error(`Element #${elementId} not found`);
 
-  const dataUrl = await capturePng(node);
+  const dataUrl = await toPng(node, PNG_OPTIONS);
+  const blob = dataUrlToBlob(dataUrl);
 
-  const link = document.createElement("a");
-  link.download = filename;
-  link.href = dataUrl;
-  link.click();
+  saveAs(blob, filename);
 }
 
 export async function exportAllSlides(
@@ -34,10 +39,6 @@ export async function exportAllSlides(
 ): Promise<void> {
   const zip = new JSZip();
 
-  // Warm up font cache on the first element before looping
-  const firstNode = document.getElementById(slideIds[0]);
-  if (firstNode) await toPng(firstNode, PNG_OPTIONS);
-
   for (let i = 0; i < slideIds.length; i++) {
     onProgress?.(i + 1, slideIds.length);
 
@@ -45,8 +46,7 @@ export async function exportAllSlides(
     if (!node) continue;
 
     const dataUrl = await toPng(node, PNG_OPTIONS);
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
+    const blob = dataUrlToBlob(dataUrl);
     const padded = String(i + 1).padStart(2, "0");
     zip.file(`slide-${padded}.png`, blob);
   }
