@@ -64,8 +64,7 @@ export default function GeneratorScreen({ onGenerated }: GeneratorScreenProps) {
         dimensions: { width: 1080, height: size },
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const slides: Slide[] = (data.slides as any[]).map((s, i) => ({
+      const slides: Slide[] = (data.slides as Record<string, string>[]).map((s, i) => ({
         id: uuidv4(),
         title: s.title ?? "",
         body: s.body ?? "",
