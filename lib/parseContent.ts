@@ -6,21 +6,30 @@ export interface ParsedSlide {
 /**
  * Parse raw user text into slides.
  *
- * Supports two formats:
- *   Numbered  →  "1 - text", "2 - text", …  (each number = one slide)
- *   Free text →  paragraphs separated by blank lines, or one line per slide
- *
- * Within each block: first line = title (if multiple lines), rest = body.
+ * Supported formats (auto-detected):
+ *   "Slide 1: text"  /  "Slide 1 - text"
+ *   "1 - text"  /  "1. text"  /  "1) text"
+ *   Paragraphs separated by blank lines
+ *   One line per slide (fallback)
  */
 export function parseContent(raw: string): ParsedSlide[] {
   const text = raw.trim();
   if (!text) return [];
 
-  // ── Numbered format ─────────────────────────────────────────────────────────
-  // Detects lines starting with:  1 -   1.   1)
+  // ── "Slide N:" / "Slide N -" format (Portuguese style) ──────────────────────
+  // e.g. "Slide 1: texto"  or  "Slide 2 - texto"
+  if (/^slide\s*\d+\s*[:.-]/im.test(text)) {
+    return text
+      .split(/\n(?=slide\s*\d+\s*[:.-])/i)
+      .map(part => part.replace(/^slide\s*\d+\s*[:.-]\s*/i, '').trim())
+      .filter(Boolean)
+      .map(block => linesToSlide(block.split('\n')));
+  }
+
+  // ── "1 -" / "1." / "1)" numeric format ─────────────────────────────────────
   if (/^\d+\s*[-.)]\s*.+/m.test(text)) {
     return text
-      .split(/\n(?=\d+\s*[-.)]\s*)/)          // split before each number
+      .split(/\n(?=\d+\s*[-.)]\s*)/)
       .map(part => part.replace(/^\d+\s*[-.)]\s*/, '').trim())
       .filter(Boolean)
       .map(block => linesToSlide(block.split('\n')));
@@ -32,7 +41,7 @@ export function parseContent(raw: string): ParsedSlide[] {
     return blocks.map(block => linesToSlide(block.split('\n')));
   }
 
-  // ── Single-line-per-slide (no blank separators) ─────────────────────────────
+  // ── Single line per slide (newline-separated, no blanks) ────────────────────
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length <= 1) return [{ title: '', body: text }];
   return lines.map(line => ({ title: '', body: line }));
