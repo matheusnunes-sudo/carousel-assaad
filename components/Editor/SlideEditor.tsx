@@ -15,7 +15,7 @@ interface SlideEditorProps {
 }
 
 export default function SlideEditor({ slide, index, isActive, onClick, onRemove }: SlideEditorProps) {
-  const { updateSlide, slides } = useCarouselStore();
+  const { updateSlide, slides, style } = useCarouselStore();
   const bodyChars = slide.body.length;
   const isOverLimit = bodyChars > MAX_CHARS;
 
@@ -33,10 +33,7 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
           Slide {index + 1}
         </span>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
           disabled={slides.length <= 1}
           title="Remover slide"
           className={clsx(
@@ -49,6 +46,29 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
           ×
         </button>
       </div>
+
+      {/* Image field — only when carousel has images enabled */}
+      {style.withImages && (
+        <div className="mb-3">
+          {slide.imagePrompt && (
+            <p className="text-[10px] text-assaad-gray-400 mb-1 italic leading-snug">
+              💡 {slide.imagePrompt}
+            </p>
+          )}
+          <label className="label" htmlFor={`img-${slide.id}`}>
+            URL da imagem
+          </label>
+          <input
+            id={`img-${slide.id}`}
+            type="url"
+            value={slide.imageUrl ?? ""}
+            onChange={(e) => updateSlide(slide.id, { imageUrl: e.target.value })}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="https://..."
+            className="input-base"
+          />
+        </div>
+      )}
 
       {/* Title field */}
       <div className="mb-2">
@@ -83,12 +103,10 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
             isOverLimit && "border-red-400 focus:border-red-500"
           )}
         />
-        <div
-          className={clsx(
-            "text-right text-[10px] mt-0.5",
-            isOverLimit ? "text-red-500 font-medium" : "text-assaad-gray-500"
-          )}
-        >
+        <div className={clsx(
+          "text-right text-[10px] mt-0.5",
+          isOverLimit ? "text-red-500 font-medium" : "text-assaad-gray-500"
+        )}>
           {bodyChars}/{MAX_CHARS}
         </div>
       </div>
@@ -104,7 +122,7 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
           value={slide.footer ?? ""}
           onChange={(e) => updateSlide(slide.id, { footer: e.target.value })}
           onClick={(e) => e.stopPropagation()}
-          placeholder="Nota de rodapé"
+          placeholder="Hashtag, CTA..."
           className="input-base"
         />
       </div>

@@ -21,7 +21,6 @@ function parseGradient(
   w: number,
   h: number
 ): CanvasGradient | null {
-  // Parse "linear-gradient(135deg, #4F5FE6, #7B8CF8)"
   const match = gradient.match(
     /linear-gradient\(\s*(\d+)deg\s*,\s*(#\w+)\s*,\s*(#\w+)\s*\)/
   );
@@ -48,10 +47,7 @@ function wrapText(
   const paragraphs = text.split("\n");
   const lines: string[] = [];
   for (const para of paragraphs) {
-    if (para === "") {
-      lines.push("");
-      continue;
-    }
+    if (para === "") { lines.push(""); continue; }
     const words = para.split(" ");
     let currentLine = words[0] ?? "";
     for (let i = 1; i < words.length; i++) {
@@ -106,11 +102,7 @@ async function renderSlideToCanvas(
   // --- Background ---
   if (isGradient) {
     const grd = parseGradient(ctx, style.backgroundColor, w, h);
-    if (grd) {
-      ctx.fillStyle = grd;
-    } else {
-      ctx.fillStyle = "#4F5FE6";
-    }
+    ctx.fillStyle = grd ?? "#4F5FE6";
   } else {
     ctx.fillStyle = style.backgroundColor;
   }
@@ -122,13 +114,11 @@ async function renderSlideToCanvas(
     ctx.arc(w - 100, -100, 400, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(123, 140, 248, 0.25)";
     ctx.fill();
-
     ctx.beginPath();
     ctx.arc(-60, h + 60, 250, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
     ctx.fill();
   }
-
   if (isGradient) {
     ctx.beginPath();
     ctx.arc(w * 0.8, h * 0.2, w * 0.4, 0, Math.PI * 2);
@@ -140,7 +130,6 @@ async function renderSlideToCanvas(
   let cursorY = pad;
   const avatarSize = 128; // 64px * 2
 
-  // Avatar
   if (profile.avatarUrl) {
     try {
       const img = await loadImage(profile.avatarUrl);
@@ -150,43 +139,86 @@ async function renderSlideToCanvas(
       ctx.clip();
       ctx.drawImage(img, pad, cursorY, avatarSize, avatarSize);
       ctx.restore();
-      // Border
       ctx.beginPath();
       ctx.arc(pad + avatarSize / 2, cursorY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
       ctx.strokeStyle = style.textColor;
       ctx.lineWidth = 6;
       ctx.stroke();
     } catch {
-      // Draw placeholder on avatar load failure
       drawAvatarPlaceholder(ctx, pad, cursorY, avatarSize, style, profile);
     }
   } else {
     drawAvatarPlaceholder(ctx, pad, cursorY, avatarSize, style, profile);
   }
 
-  // Name + handle text
-  const textX = pad + avatarSize + 32;
+  const nameX = pad + avatarSize + 32;
   ctx.fillStyle = style.textColor;
-
   if (profile.displayName) {
     ctx.font = getFontCSS(font, 700, 44);
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.fillText(profile.displayName, textX, cursorY + 16);
+    ctx.fillText(profile.displayName, nameX, cursorY + 16);
   }
-
   ctx.globalAlpha = 0.7;
   ctx.font = getFontCSS(font, 400, 36);
-  ctx.fillText(profile.handle, textX, cursorY + (profile.displayName ? 68 : 46));
+  ctx.fillText(profile.handle, nameX, cursorY + (profile.displayName ? 68 : 46));
   ctx.globalAlpha = 1;
 
-  const headerBottom = cursorY + avatarSize + 96;
+  const headerBottom = cursorY + avatarSize + 64;
+
+  // --- Image area (withImages) ---
+  let imageAreaBottom = headerBottom;
+  if (style.withImages) {
+    const imgH = Math.round(h * 0.35);
+    const imgX = pad;
+    const imgY = headerBottom;
+    const imgW = contentWidth;
+    const r = 24;
+
+    if (slide.imageUrl) {
+      try {
+        const img = await loadImage(slide.imageUrl);
+        ctx.save();
+        // Rounded clip
+        ctx.beginPath();
+        ctx.moveTo(imgX + r, imgY);
+        ctx.lineTo(imgX + imgW - r, imgY);
+        ctx.arcTo(imgX + imgW, imgY, imgX + imgW, imgY + r, r);
+        ctx.lineTo(imgX + imgW, imgY + imgH - r);
+        ctx.arcTo(imgX + imgW, imgY + imgH, imgX + imgW - r, imgY + imgH, r);
+        ctx.lineTo(imgX + r, imgY + imgH);
+        ctx.arcTo(imgX, imgY + imgH, imgX, imgY + imgH - r, r);
+        ctx.lineTo(imgX, imgY + r);
+        ctx.arcTo(imgX, imgY, imgX + r, imgY, r);
+        ctx.closePath();
+        ctx.clip();
+        // Cover fit
+        const imgRatio = img.width / img.height;
+        const areaRatio = imgW / imgH;
+        let sx = 0, sy = 0, sw = img.width, sh = img.height;
+        if (imgRatio > areaRatio) {
+          sw = img.height * areaRatio;
+          sx = (img.width - sw) / 2;
+        } else {
+          sh = img.width / areaRatio;
+          sy = (img.height - sh) / 2;
+        }
+        ctx.drawImage(img, sx, sy, sw, sh, imgX, imgY, imgW, imgH);
+        ctx.restore();
+      } catch {
+        drawImagePlaceholder(ctx, imgX, imgY, imgW, imgH, style, r);
+      }
+    } else {
+      drawImagePlaceholder(ctx, imgX, imgY, imgW, imgH, style, r);
+    }
+    imageAreaBottom = imgY + imgH + 48;
+  }
 
   // --- Pre-calculate content block height for vertical centering ---
   const titleLineHeight = sizes.title * 1.2;
   const bodyLineHeight = sizes.body * 1.65;
-  const footerZoneHeight = sizes.footer * 2 + 32; // space reserved for footer row
-  const contentAreaTop = headerBottom;
+  const footerZoneHeight = sizes.footer * 2 + 32;
+  const contentAreaTop = imageAreaBottom;
   const contentAreaBottom = h - pad - footerZoneHeight;
   const contentAreaHeight = contentAreaBottom - contentAreaTop;
 
@@ -200,7 +232,6 @@ async function renderSlideToCanvas(
   const bodyBlockHeight = bodyLines.length * bodyLineHeight;
   const totalContentHeight = titleBlockHeight + bodyBlockHeight;
 
-  // Start Y centered within the available area
   cursorY = contentAreaTop + Math.max(0, (contentAreaHeight - totalContentHeight) / 2);
 
   // --- Main content ---
@@ -208,7 +239,6 @@ async function renderSlideToCanvas(
   ctx.textAlign = textAlign;
   const textX2 = textAlign === "center" ? w / 2 : pad;
 
-  // Title
   if (titleLines.length > 0) {
     ctx.font = getFontCSS(font, 700, sizes.title);
     ctx.textBaseline = "top";
@@ -219,7 +249,6 @@ async function renderSlideToCanvas(
     cursorY += 48;
   }
 
-  // Body
   if (bodyLines.length > 0) {
     ctx.font = getFontCSS(font, 400, sizes.body);
     ctx.textBaseline = "top";
@@ -272,13 +301,59 @@ function drawAvatarPlaceholder(
   ctx.strokeStyle = "rgba(255,255,255,0.3)";
   ctx.lineWidth = 6;
   ctx.stroke();
-
   const letter = (profile.displayName || profile.handle)[0]?.toUpperCase() ?? "U";
   ctx.fillStyle = style.textColor;
   ctx.font = getFontCSS(style.fontFamily, 700, 48);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(letter, x + size / 2, y + size / 2);
+}
+
+function drawImagePlaceholder(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  style: CarouselStyle,
+  radius: number
+) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.arcTo(x + w, y, x + w, y + radius, radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.arcTo(x + w, y + h, x + w - radius, y + h, radius);
+  ctx.lineTo(x + radius, y + h);
+  ctx.arcTo(x, y + h, x, y + h - radius, radius);
+  ctx.lineTo(x, y + radius);
+  ctx.arcTo(x, y, x + radius, y, radius);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(255,255,255,0.08)";
+  ctx.fill();
+  ctx.strokeStyle = style.textColor + "30";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([16, 12]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Image icon
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  ctx.strokeStyle = style.textColor + "50";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(cx - 48, cy - 40, 96, 80);
+  ctx.beginPath();
+  ctx.arc(cx - 20, cy - 12, 14, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - 48, cy + 40);
+  ctx.lineTo(cx - 10, cy);
+  ctx.lineTo(cx + 20, cy + 24);
+  ctx.lineTo(cx + 40, cy + 8);
+  ctx.lineTo(cx + 48, cy + 20);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {

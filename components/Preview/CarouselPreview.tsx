@@ -3,9 +3,11 @@
 import { useCarouselStore } from "@/lib/store";
 import { SlidePreviewScaled } from "./SlidePreview";
 
-const PREVIEW_SCALE = 0.28;
+interface CarouselPreviewProps {
+  scale?: number;
+}
 
-export default function CarouselPreview() {
+export default function CarouselPreview({ scale = 0.28 }: CarouselPreviewProps) {
   const { slides, style, profile, setActiveSlide, activeSlideId } = useCarouselStore();
 
   return (
@@ -18,7 +20,7 @@ export default function CarouselPreview() {
             profile={profile}
             index={index}
             total={slides.length}
-            scale={PREVIEW_SCALE}
+            scale={scale}
             isActive={activeSlideId === slide.id}
             onClick={() => setActiveSlide(slide.id)}
           />

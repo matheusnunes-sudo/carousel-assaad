@@ -3,6 +3,8 @@ export interface Slide {
   title?: string;
   body: string;
   footer?: string;
+  imagePrompt?: string; // AI-suggested image description
+  imageUrl?: string;    // user-supplied image URL
   order: number;
 }
 
@@ -13,6 +15,7 @@ export interface CarouselStyle {
   fontSize: FontSize;
   textAlign: TextAlign;
   showSlideNumber: boolean;
+  withImages: boolean;
   dimensions: { width: number; height: number };
 }
 
@@ -50,15 +53,15 @@ export type FontSize = "small" | "medium" | "large";
 export type TextAlign = "left" | "center";
 
 export const FONT_SIZE_MAP: Record<FontSize, { title: string; body: string; footer: string }> = {
-  small: { title: "28px", body: "18px", footer: "14px" },
+  small:  { title: "28px", body: "18px", footer: "14px" },
   medium: { title: "36px", body: "22px", footer: "16px" },
-  large: { title: "48px", body: "28px", footer: "18px" },
+  large:  { title: "48px", body: "28px", footer: "18px" },
 };
 
 export const FONT_FAMILY_MAP: Record<FontFamily, string> = {
-  "Inter": "'Inter', sans-serif",
-  "Space Grotesk": "'Space Grotesk', sans-serif",
-  "Playfair Display": "'Playfair Display', serif",
-  "JetBrains Mono": "'JetBrains Mono', monospace",
-  "Outfit": "'Outfit', sans-serif",
+  "Inter":             "'Inter', sans-serif",
+  "Space Grotesk":     "'Space Grotesk', sans-serif",
+  "Playfair Display":  "'Playfair Display', serif",
+  "JetBrains Mono":   "'JetBrains Mono', monospace",
+  "Outfit":            "'Outfit', sans-serif",
 };

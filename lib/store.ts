@@ -7,7 +7,11 @@ interface CarouselStore {
   style: CarouselStyle;
   profile: UserProfile;
   activeSlideId: string | null;
-  templateId: string;
+
+  // Bulk actions (used by generator)
+  setSlides: (slides: Slide[]) => void;
+  setStyle: (style: CarouselStyle) => void;
+  setProfile: (profile: UserProfile) => void;
 
   // Slide actions
   addSlide: () => void;
@@ -29,9 +33,6 @@ interface CarouselStore {
   setHandle: (handle: string) => void;
   setDisplayName: (name: string) => void;
   setAvatarUrl: (url: string) => void;
-
-  // Template actions
-  applyTemplate: (templateId: string, style: CarouselStyle) => void;
 }
 
 const defaultStyle: CarouselStyle = {
@@ -41,6 +42,7 @@ const defaultStyle: CarouselStyle = {
   fontSize: "medium",
   textAlign: "left",
   showSlideNumber: true,
+  withImages: false,
   dimensions: { width: 1080, height: 1080 },
 };
 
@@ -57,14 +59,14 @@ export const useCarouselStore = create<CarouselStore>((set) => ({
   style: defaultStyle,
   profile: { handle: "@usuario", displayName: "Usuário" },
   activeSlideId: null,
-  templateId: "twitter-dark",
+
+  setSlides: (slides) => set({ slides }),
+  setStyle: (style) => set({ style }),
+  setProfile: (profile) => set({ profile }),
 
   addSlide: () =>
     set((state) => ({
-      slides: [
-        ...state.slides,
-        createSlide(state.slides.length),
-      ],
+      slides: [...state.slides, createSlide(state.slides.length)],
     })),
 
   removeSlide: (id) =>
@@ -78,9 +80,7 @@ export const useCarouselStore = create<CarouselStore>((set) => ({
 
   updateSlide: (id, data) =>
     set((state) => ({
-      slides: state.slides.map((s) =>
-        s.id === id ? { ...s, ...data } : s
-      ),
+      slides: state.slides.map((s) => (s.id === id ? { ...s, ...data } : s)),
     })),
 
   reorderSlides: (activeId, overId) =>
@@ -88,14 +88,10 @@ export const useCarouselStore = create<CarouselStore>((set) => ({
       const oldIndex = state.slides.findIndex((s) => s.id === activeId);
       const newIndex = state.slides.findIndex((s) => s.id === overId);
       if (oldIndex === -1 || newIndex === -1) return state;
-
       const reordered = [...state.slides];
       const [moved] = reordered.splice(oldIndex, 1);
       reordered.splice(newIndex, 0, moved);
-
-      return {
-        slides: reordered.map((s, i) => ({ ...s, order: i })),
-      };
+      return { slides: reordered.map((s, i) => ({ ...s, order: i })) };
     }),
 
   setActiveSlide: (id) => set({ activeSlideId: id }),
@@ -129,7 +125,4 @@ export const useCarouselStore = create<CarouselStore>((set) => ({
 
   setAvatarUrl: (avatarUrl) =>
     set((state) => ({ profile: { ...state.profile, avatarUrl } })),
-
-  applyTemplate: (templateId, style) =>
-    set({ templateId, style }),
 }));

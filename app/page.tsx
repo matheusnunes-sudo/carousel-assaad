@@ -2,26 +2,47 @@
 
 import { useState } from "react";
 import { useCarouselStore } from "@/lib/store";
+import type { Slide, CarouselStyle, UserProfile } from "@/types/carousel";
 import SlideList from "@/components/Editor/SlideList";
 import StyleControls from "@/components/Editor/StyleControls";
-import TemplateSelector from "@/components/Editor/TemplateSelector";
 import ProfileEditor from "@/components/Editor/ProfileEditor";
 import CarouselPreview from "@/components/Preview/CarouselPreview";
 import { ExportAllButton } from "@/components/Export/ExportButton";
+import GeneratorScreen from "@/components/Generator/GeneratorScreen";
 import clsx from "clsx";
 
-type EditorTab = "slides" | "style" | "profile" | "templates";
+type EditorTab = "slides" | "style" | "profile";
 
 const TABS: { id: EditorTab; label: string }[] = [
   { id: "slides", label: "Slides" },
-  { id: "style", label: "Estilo" },
+  { id: "style",  label: "Estilo" },
   { id: "profile", label: "Perfil" },
-  { id: "templates", label: "Templates" },
 ];
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<EditorTab>("slides");
-  const { slides, style } = useCarouselStore();
+  const [isEditing, setIsEditing] = useState(false);
+  const { slides, style, setSlides, setStyle, setProfile } = useCarouselStore();
+
+  const handleGenerated = (
+    generatedSlides: Slide[],
+    generatedStyle: CarouselStyle,
+    generatedProfile: UserProfile
+  ) => {
+    setSlides(generatedSlides);
+    setStyle(generatedStyle);
+    setProfile(generatedProfile);
+    setActiveTab("slides");
+    setIsEditing(true);
+  };
+
+  // ── Generator screen ──────────────────────────────────────────────
+  if (!isEditing) {
+    return <GeneratorScreen onGenerated={handleGenerated} />;
+  }
+
+  // ── Editor screen ─────────────────────────────────────────────────
+  const previewScale = style.dimensions.height === 1350 ? 0.22 : 0.28;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-assaad-gray-50">
@@ -40,10 +61,18 @@ export default function HomePage() {
           <span className="font-semibold text-assaad-dark text-sm">CarrosselGen</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className="text-xs text-assaad-gray-500">
             {slides.length} slide{slides.length !== 1 ? "s" : ""}
+            {" · "}
+            {style.dimensions.width}×{style.dimensions.height}
           </span>
+          <button
+            onClick={() => setIsEditing(false)}
+            className="text-xs text-assaad-gray-500 hover:text-assaad-dark border border-assaad-gray-200 rounded-lg px-3 py-1.5 transition-colors"
+          >
+            ← Novo carrossel
+          </button>
           <ExportAllButton />
         </div>
       </header>
@@ -51,7 +80,8 @@ export default function HomePage() {
       {/* Main */}
       <div className="flex flex-1 overflow-hidden">
         {/* Editor panel */}
-        <aside className="w-80 flex-shrink-0 flex flex-col bg-white border-r overflow-hidden"
+        <aside
+          className="w-80 flex-shrink-0 flex flex-col bg-white border-r overflow-hidden"
           style={{ borderColor: "var(--assaad-gray-200)" }}
         >
           {/* Tab bar */}
@@ -72,10 +102,9 @@ export default function HomePage() {
 
           {/* Tab content */}
           <div className="flex-1 overflow-y-auto scrollbar-thin p-4">
-            {activeTab === "slides" && <SlideList />}
-            {activeTab === "style" && <StyleControls />}
+            {activeTab === "slides"  && <SlideList />}
+            {activeTab === "style"   && <StyleControls />}
             {activeTab === "profile" && <ProfileEditor />}
-            {activeTab === "templates" && <TemplateSelector />}
           </div>
         </aside>
 
@@ -88,12 +117,11 @@ export default function HomePage() {
                   Preview
                 </h2>
                 <span className="text-[10px] text-assaad-gray-500">
-                  {`${Math.round(style.dimensions.width * 0.28)}×${Math.round(
-                    style.dimensions.height * 0.28
-                  )} px (28%)`}
+                  {style.dimensions.width}×{style.dimensions.height}px
+                  {" "}({Math.round(previewScale * 100)}%)
                 </span>
               </div>
-              <CarouselPreview />
+              <CarouselPreview scale={previewScale} />
             </div>
           </div>
         </main>
