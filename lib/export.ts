@@ -1,70 +1,42 @@
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import type { Slide, CarouselStyle, UserProfile } from "@/types/carousel";
+import { getFontSizes } from "@/types/carousel";
 
-// Pixel sizes used by Canvas (no "px" suffix)
-const FONT_SIZE_PX: Record<string, { title: number; body: number; footer: number }> = {
-  small:  { title: 56, body: 36, footer: 28 },
-  medium: { title: 72, body: 44, footer: 32 },
-  large:  { title: 96, body: 56, footer: 36 },
-};
+const PADDING = 128; // 64px * 2x retina
 
-const PADDING = 128; // 64px * 2x pixelRatio
-
-function getFontCSS(family: string, weight: number, size: number): string {
+function css(family: string, weight: number, size: number) {
   return `${weight} ${size}px "${family}", sans-serif`;
 }
 
-function parseGradient(
-  ctx: CanvasRenderingContext2D,
-  gradient: string,
-  w: number,
-  h: number
-): CanvasGradient | null {
-  const match = gradient.match(
-    /linear-gradient\(\s*(\d+)deg\s*,\s*(#\w+)\s*,\s*(#\w+)\s*\)/
-  );
-  if (!match) return null;
-  const angle = (parseFloat(match[1]) * Math.PI) / 180;
-  const cx = w / 2;
-  const cy = h / 2;
-  const len = Math.max(w, h);
-  const x0 = cx - Math.cos(angle) * len;
-  const y0 = cy - Math.sin(angle) * len;
-  const x1 = cx + Math.cos(angle) * len;
-  const y1 = cy + Math.sin(angle) * len;
-  const grd = ctx.createLinearGradient(x0, y0, x1, y1);
-  grd.addColorStop(0, match[2]);
-  grd.addColorStop(1, match[3]);
+function parseGradient(ctx: CanvasRenderingContext2D, gradient: string, w: number, h: number): CanvasGradient | null {
+  const m = gradient.match(/linear-gradient\(\s*(\d+)deg\s*,\s*(#\w+)\s*,\s*(#\w+)\s*\)/);
+  if (!m) return null;
+  const angle = (parseFloat(m[1]) * Math.PI) / 180;
+  const cx = w / 2, cy = h / 2, len = Math.max(w, h);
+  const grd = ctx.createLinearGradient(cx - Math.cos(angle) * len, cy - Math.sin(angle) * len, cx + Math.cos(angle) * len, cy + Math.sin(angle) * len);
+  grd.addColorStop(0, m[2]);
+  grd.addColorStop(1, m[3]);
   return grd;
 }
 
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): string[] {
-  const paragraphs = text.split("\n");
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
-  for (const para of paragraphs) {
-    if (para === "") { lines.push(""); continue; }
+  for (const para of text.split("\n")) {
+    if (!para) { lines.push(""); continue; }
     const words = para.split(" ");
-    let currentLine = words[0] ?? "";
+    let cur = words[0] ?? "";
     for (let i = 1; i < words.length; i++) {
-      const test = currentLine + " " + words[i];
-      if (ctx.measureText(test).width > maxWidth) {
-        lines.push(currentLine);
-        currentLine = words[i];
-      } else {
-        currentLine = test;
-      }
+      const test = cur + " " + words[i];
+      if (ctx.measureText(test).width > maxWidth) { lines.push(cur); cur = words[i]; }
+      else cur = test;
     }
-    lines.push(currentLine);
+    lines.push(cur);
   }
   return lines;
 }
 
-async function loadImage(url: string): Promise<HTMLImageElement> {
+async function loadImg(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -74,7 +46,7 @@ async function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-async function renderSlideToCanvas(
+async function renderSlide(
   slide: Slide,
   style: CarouselStyle,
   profile: UserProfile,
@@ -82,315 +54,204 @@ async function renderSlideToCanvas(
   total: number
 ): Promise<HTMLCanvasElement> {
   const { width, height } = style.dimensions;
-  const scale = 2; // 2x for high-res
+  const scale = 2;
   const w = width * scale;
   const h = height * scale;
 
   const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext("2d")!;
 
-  const isGradient = style.backgroundColor.startsWith("linear-gradient");
-  const isAssaadBrand = style.backgroundColor === "#4F5FE6";
-  const sizes = FONT_SIZE_PX[style.fontSize] ?? FONT_SIZE_PX.medium;
-  const font = style.fontFamily;
-  const textAlign = style.textAlign;
-  const pad = PADDING;
-  const contentWidth = w - pad * 2;
+  // Font sizes at 2x canvas scale
+  const previewSizes = getFontSizes(style.fontSize);
+  const sz = {
+    title:  previewSizes.title  * scale,
+    body:   previewSizes.body   * scale,
+    footer: previewSizes.footer * scale,
+  };
+  const titleLineH = sz.title  * 1.2;
+  const bodyLineH  = sz.body   * 1.65;
 
-  // --- Background ---
+  const isGradient = style.backgroundColor.startsWith("linear-gradient");
+  const pad = PADDING;
+  const cw  = w - pad * 2; // content width
+  const font = "Inter";
+
+  // Background
   if (isGradient) {
     const grd = parseGradient(ctx, style.backgroundColor, w, h);
-    ctx.fillStyle = grd ?? "#4F5FE6";
+    ctx.fillStyle = grd ?? "#15202B";
   } else {
     ctx.fillStyle = style.backgroundColor;
   }
   ctx.fillRect(0, 0, w, h);
 
-  // --- Decorative elements ---
-  if (isAssaadBrand) {
-    ctx.beginPath();
-    ctx.arc(w - 100, -100, 400, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(123, 140, 248, 0.25)";
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(-60, h + 60, 250, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
-    ctx.fill();
-  }
-  if (isGradient) {
-    ctx.beginPath();
-    ctx.arc(w * 0.8, h * 0.2, w * 0.4, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
-    ctx.fill();
-  }
-
-  // --- Profile header ---
-  let cursorY = pad;
-  const avatarSize = 128; // 64px * 2
+  // ── Profile header ──────────────────────────────────────────────────────────
+  let curY = pad;
+  const avatarSize = 128;
 
   if (profile.avatarUrl) {
     try {
-      const img = await loadImage(profile.avatarUrl);
+      const img = await loadImg(profile.avatarUrl);
       ctx.save();
       ctx.beginPath();
-      ctx.arc(pad + avatarSize / 2, cursorY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+      ctx.arc(pad + avatarSize / 2, curY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
       ctx.clip();
-      ctx.drawImage(img, pad, cursorY, avatarSize, avatarSize);
+      ctx.drawImage(img, pad, curY, avatarSize, avatarSize);
       ctx.restore();
       ctx.beginPath();
-      ctx.arc(pad + avatarSize / 2, cursorY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-      ctx.strokeStyle = style.textColor;
-      ctx.lineWidth = 6;
-      ctx.stroke();
+      ctx.arc(pad + avatarSize / 2, curY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+      ctx.strokeStyle = style.textColor; ctx.lineWidth = 6; ctx.stroke();
     } catch {
-      drawAvatarPlaceholder(ctx, pad, cursorY, avatarSize, style, profile);
+      drawAvatarPlaceholder(ctx, pad, curY, avatarSize, style, profile, font);
     }
   } else {
-    drawAvatarPlaceholder(ctx, pad, cursorY, avatarSize, style, profile);
+    drawAvatarPlaceholder(ctx, pad, curY, avatarSize, style, profile, font);
   }
 
   const nameX = pad + avatarSize + 32;
   ctx.fillStyle = style.textColor;
   if (profile.displayName) {
-    ctx.font = getFontCSS(font, 700, 44);
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText(profile.displayName, nameX, cursorY + 16);
+    ctx.font = css(font, 700, 44); ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText(profile.displayName, nameX, curY + 16);
   }
   ctx.globalAlpha = 0.7;
-  ctx.font = getFontCSS(font, 400, 36);
-  ctx.fillText(profile.handle, nameX, cursorY + (profile.displayName ? 68 : 46));
+  ctx.font = css(font, 400, 36);
+  ctx.fillText(profile.handle, nameX, curY + (profile.displayName ? 68 : 46));
   ctx.globalAlpha = 1;
 
-  const headerBottom = cursorY + avatarSize + 64;
+  const headerBottom = curY + avatarSize + 64;
 
-  // --- Image area (withImages) ---
-  let imageAreaBottom = headerBottom;
+  // ── Image area ──────────────────────────────────────────────────────────────
+  let imageBottom = headerBottom;
   if (style.withImages) {
-    const imgH = Math.round(h * 0.35);
-    const imgX = pad;
-    const imgY = headerBottom;
-    const imgW = contentWidth;
-    const r = 24;
+    const ih = Math.round(h * 0.35);
+    const ix = pad, iy = headerBottom, iw = cw, r = 24;
 
     if (slide.imageUrl) {
       try {
-        const img = await loadImage(slide.imageUrl);
+        const img = await loadImg(slide.imageUrl);
         ctx.save();
-        // Rounded clip
-        ctx.beginPath();
-        ctx.moveTo(imgX + r, imgY);
-        ctx.lineTo(imgX + imgW - r, imgY);
-        ctx.arcTo(imgX + imgW, imgY, imgX + imgW, imgY + r, r);
-        ctx.lineTo(imgX + imgW, imgY + imgH - r);
-        ctx.arcTo(imgX + imgW, imgY + imgH, imgX + imgW - r, imgY + imgH, r);
-        ctx.lineTo(imgX + r, imgY + imgH);
-        ctx.arcTo(imgX, imgY + imgH, imgX, imgY + imgH - r, r);
-        ctx.lineTo(imgX, imgY + r);
-        ctx.arcTo(imgX, imgY, imgX + r, imgY, r);
-        ctx.closePath();
+        roundedRect(ctx, ix, iy, iw, ih, r);
         ctx.clip();
-        // Cover fit
-        const imgRatio = img.width / img.height;
-        const areaRatio = imgW / imgH;
+        const ir = img.width / img.height, ar = iw / ih;
         let sx = 0, sy = 0, sw = img.width, sh = img.height;
-        if (imgRatio > areaRatio) {
-          sw = img.height * areaRatio;
-          sx = (img.width - sw) / 2;
-        } else {
-          sh = img.width / areaRatio;
-          sy = (img.height - sh) / 2;
-        }
-        ctx.drawImage(img, sx, sy, sw, sh, imgX, imgY, imgW, imgH);
+        if (ir > ar) { sw = img.height * ar; sx = (img.width - sw) / 2; }
+        else          { sh = img.width / ar;  sy = (img.height - sh) / 2; }
+        ctx.drawImage(img, sx, sy, sw, sh, ix, iy, iw, ih);
         ctx.restore();
       } catch {
-        drawImagePlaceholder(ctx, imgX, imgY, imgW, imgH, style, r);
+        drawImagePlaceholder(ctx, ix, iy, iw, ih, style, r);
       }
     } else {
-      drawImagePlaceholder(ctx, imgX, imgY, imgW, imgH, style, r);
+      drawImagePlaceholder(ctx, ix, iy, iw, ih, style, r);
     }
-    imageAreaBottom = imgY + imgH + 48;
+    imageBottom = headerBottom + ih + 48;
   }
 
-  // --- Pre-calculate content block height for vertical centering ---
-  const titleLineHeight = sizes.title * 1.2;
-  const bodyLineHeight = sizes.body * 1.65;
-  const footerZoneHeight = sizes.footer * 2 + 32;
-  const contentAreaTop = imageAreaBottom;
-  const contentAreaBottom = h - pad - footerZoneHeight;
-  const contentAreaHeight = contentAreaBottom - contentAreaTop;
+  // ── Content (vertically centred) ────────────────────────────────────────────
+  const footerZone = sz.footer * 2 + 32;
+  const areaTop    = imageBottom;
+  const areaBot    = h - pad - footerZone;
+  const areaH      = areaBot - areaTop;
 
-  ctx.font = getFontCSS(font, 700, sizes.title);
-  const titleLines = slide.title ? wrapText(ctx, slide.title, contentWidth) : [];
+  ctx.font = css(font, 700, sz.title);
+  const titleLines = slide.title ? wrapText(ctx, slide.title, cw) : [];
+  ctx.font = css(font, 400, sz.body);
+  const bodyLines  = slide.body  ? wrapText(ctx, slide.body,  cw) : [];
 
-  ctx.font = getFontCSS(font, 400, sizes.body);
-  const bodyLines = slide.body ? wrapText(ctx, slide.body, contentWidth) : [];
+  const titleBlockH = titleLines.length > 0 ? titleLines.length * titleLineH + 48 : 0;
+  const bodyBlockH  = bodyLines.length * bodyLineH;
+  const totalH      = titleBlockH + bodyBlockH;
 
-  const titleBlockHeight = titleLines.length > 0 ? titleLines.length * titleLineHeight + 48 : 0;
-  const bodyBlockHeight = bodyLines.length * bodyLineHeight;
-  const totalContentHeight = titleBlockHeight + bodyBlockHeight;
+  curY = areaTop + Math.max(0, (areaH - totalH) / 2);
 
-  cursorY = contentAreaTop + Math.max(0, (contentAreaHeight - totalContentHeight) / 2);
-
-  // --- Main content ---
   ctx.fillStyle = style.textColor;
-  ctx.textAlign = textAlign;
-  const textX2 = textAlign === "center" ? w / 2 : pad;
+  ctx.textAlign = "left";
 
   if (titleLines.length > 0) {
-    ctx.font = getFontCSS(font, 700, sizes.title);
-    ctx.textBaseline = "top";
-    for (const line of titleLines) {
-      ctx.fillText(line, textX2, cursorY);
-      cursorY += titleLineHeight;
-    }
-    cursorY += 48;
+    ctx.font = css(font, 700, sz.title); ctx.textBaseline = "top";
+    for (const line of titleLines) { ctx.fillText(line, pad, curY); curY += titleLineH; }
+    curY += 48;
   }
-
   if (bodyLines.length > 0) {
-    ctx.font = getFontCSS(font, 400, sizes.body);
-    ctx.textBaseline = "top";
+    ctx.font = css(font, 400, sz.body); ctx.textBaseline = "top";
     if (titleLines.length > 0) ctx.globalAlpha = 0.9;
-    for (const line of bodyLines) {
-      ctx.fillText(line, textX2, cursorY);
-      cursorY += bodyLineHeight;
-    }
+    for (const line of bodyLines) { ctx.fillText(line, pad, curY); curY += bodyLineH; }
     ctx.globalAlpha = 1;
   }
 
-  // --- Footer ---
-  const footerY = h - pad;
-
+  // ── Footer ──────────────────────────────────────────────────────────────────
+  const fy = h - pad;
   if (slide.footer) {
-    ctx.font = getFontCSS(font, 400, sizes.footer);
-    ctx.textAlign = "left";
-    ctx.textBaseline = "bottom";
-    ctx.globalAlpha = 0.6;
-    ctx.fillStyle = style.textColor;
-    ctx.fillText(slide.footer, pad, footerY, contentWidth * 0.75);
+    ctx.font = css(font, 400, sz.footer); ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+    ctx.globalAlpha = 0.6; ctx.fillStyle = style.textColor;
+    ctx.fillText(slide.footer, pad, fy, cw * 0.75);
     ctx.globalAlpha = 1;
   }
-
   if (style.showSlideNumber) {
-    ctx.font = getFontCSS(font, 600, sizes.footer);
-    ctx.textAlign = "right";
-    ctx.textBaseline = "bottom";
-    ctx.globalAlpha = 0.7;
-    ctx.fillStyle = style.textColor;
-    ctx.fillText(`${index + 1}/${total}`, w - pad, footerY);
+    ctx.font = css(font, 600, sz.footer); ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+    ctx.globalAlpha = 0.7; ctx.fillStyle = style.textColor;
+    ctx.fillText(`${index + 1}/${total}`, w - pad, fy);
     ctx.globalAlpha = 1;
   }
 
   return canvas;
 }
 
-function drawAvatarPlaceholder(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  size: number,
-  style: CarouselStyle,
-  profile: UserProfile
-) {
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255,255,255,0.2)";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,0.3)";
-  ctx.lineWidth = 6;
-  ctx.stroke();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function drawAvatarPlaceholder(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, style: CarouselStyle, profile: UserProfile, font: string) {
+  ctx.beginPath(); ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 6; ctx.stroke();
   const letter = (profile.displayName || profile.handle)[0]?.toUpperCase() ?? "U";
-  ctx.fillStyle = style.textColor;
-  ctx.font = getFontCSS(style.fontFamily, 700, 48);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
+  ctx.fillStyle = style.textColor; ctx.font = `700 48px "${font}", sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText(letter, x + size / 2, y + size / 2);
 }
 
-function drawImagePlaceholder(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  style: CarouselStyle,
-  radius: number
-) {
+function drawImagePlaceholder(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, style: CarouselStyle, r: number) {
   ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + w - radius, y);
-  ctx.arcTo(x + w, y, x + w, y + radius, radius);
-  ctx.lineTo(x + w, y + h - radius);
-  ctx.arcTo(x + w, y + h, x + w - radius, y + h, radius);
-  ctx.lineTo(x + radius, y + h);
-  ctx.arcTo(x, y + h, x, y + h - radius, radius);
-  ctx.lineTo(x, y + radius);
-  ctx.arcTo(x, y, x + radius, y, radius);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(255,255,255,0.08)";
-  ctx.fill();
-  ctx.strokeStyle = style.textColor + "30";
-  ctx.lineWidth = 3;
-  ctx.setLineDash([16, 12]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  // Image icon
-  const cx = x + w / 2;
-  const cy = y + h / 2;
-  ctx.strokeStyle = style.textColor + "50";
-  ctx.lineWidth = 6;
+  roundedRect(ctx, x, y, w, h, r);
+  ctx.fillStyle = "rgba(255,255,255,0.08)"; ctx.fill();
+  ctx.strokeStyle = style.textColor + "30"; ctx.lineWidth = 3;
+  ctx.setLineDash([16, 12]); ctx.stroke(); ctx.setLineDash([]);
+  const cx = x + w / 2, cy = y + h / 2;
+  ctx.strokeStyle = style.textColor + "50"; ctx.lineWidth = 6;
   ctx.strokeRect(cx - 48, cy - 40, 96, 80);
-  ctx.beginPath();
-  ctx.arc(cx - 20, cy - 12, 14, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(cx - 48, cy + 40);
-  ctx.lineTo(cx - 10, cy);
-  ctx.lineTo(cx + 20, cy + 24);
-  ctx.lineTo(cx + 40, cy + 8);
-  ctx.lineTo(cx + 48, cy + 20);
-  ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx - 20, cy - 12, 14, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - 48, cy + 40); ctx.lineTo(cx - 10, cy); ctx.lineTo(cx + 20, cy + 24); ctx.lineTo(cx + 40, cy + 8); ctx.lineTo(cx + 48, cy + 20); ctx.stroke();
   ctx.restore();
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => resolve(blob!), "image/png", 1);
-  });
+function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b!), "image/png", 1));
 }
 
-export async function exportSlide(
-  slide: Slide,
-  style: CarouselStyle,
-  profile: UserProfile,
-  index: number,
-  total: number,
-  filename: string
-): Promise<void> {
-  const canvas = await renderSlideToCanvas(slide, style, profile, index, total);
-  const blob = await canvasToBlob(canvas);
-  saveAs(blob, filename);
+// ── Public API ─────────────────────────────────────────────────────────────────
+
+export async function exportSlide(slide: Slide, style: CarouselStyle, profile: UserProfile, index: number, total: number, filename: string): Promise<void> {
+  const canvas = await renderSlide(slide, style, profile, index, total);
+  saveAs(await toBlob(canvas), filename);
 }
 
-export async function exportAllSlides(
-  slides: Slide[],
-  style: CarouselStyle,
-  profile: UserProfile,
-  onProgress?: (current: number, total: number) => void
-): Promise<void> {
+export async function exportAllSlides(slides: Slide[], style: CarouselStyle, profile: UserProfile, onProgress?: (c: number, t: number) => void): Promise<void> {
   const zip = new JSZip();
-
   for (let i = 0; i < slides.length; i++) {
     onProgress?.(i + 1, slides.length);
-    const canvas = await renderSlideToCanvas(slides[i], style, profile, i, slides.length);
-    const blob = await canvasToBlob(canvas);
-    const padded = String(i + 1).padStart(2, "0");
-    zip.file(`slide-${padded}.png`, blob);
+    const canvas = await renderSlide(slides[i], style, profile, i, slides.length);
+    zip.file(`slide-${String(i + 1).padStart(2, "0")}.png`, await toBlob(canvas));
   }
-
-  const content = await zip.generateAsync({ type: "blob" });
-  saveAs(content, "carousel.zip");
+  saveAs(await zip.generateAsync({ type: "blob" }), "carousel.zip");
 }

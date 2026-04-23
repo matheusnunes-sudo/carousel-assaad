@@ -1,38 +1,21 @@
-import type { Template } from "@/types/carousel";
+// Templates are no longer used in the UI — kept for reference only.
+import type { CarouselStyle } from "@/types/carousel";
+import { DEFAULT_FONT_SIZE } from "@/types/carousel";
 
-export const TEMPLATES: Template[] = [
-  {
-    id: "twitter-dark",
-    name: "Twitter Dark",
-    description: "Fundo escuro estilo Twitter/X, texto branco",
-    style: {
-      backgroundColor: "#15202B",
-      textColor: "#FFFFFF",
-      fontFamily: "Inter",
-      fontSize: "medium",
-      textAlign: "left",
-      showSlideNumber: true,
-      withImages: false,
-      dimensions: { width: 1080, height: 1080 },
-    },
-  },
-  {
-    id: "twitter-light",
-    name: "Twitter Light",
-    description: "Fundo branco estilo Twitter/X, texto escuro",
-    style: {
-      backgroundColor: "#FFFFFF",
-      textColor: "#0F1419",
-      fontFamily: "Inter",
-      fontSize: "medium",
-      textAlign: "left",
-      showSlideNumber: true,
-      withImages: false,
-      dimensions: { width: 1080, height: 1080 },
-    },
-  },
-];
+export const TWITTER_DARK_STYLE: CarouselStyle = {
+  backgroundColor: "#15202B",
+  textColor: "#FFFFFF",
+  fontSize: DEFAULT_FONT_SIZE,
+  showSlideNumber: true,
+  withImages: false,
+  dimensions: { width: 1080, height: 1080 },
+};
 
-export function getTemplate(id: string): Template | undefined {
-  return TEMPLATES.find((t) => t.id === id);
-}
+export const TWITTER_LIGHT_STYLE: CarouselStyle = {
+  backgroundColor: "#FFFFFF",
+  textColor: "#0F1419",
+  fontSize: DEFAULT_FONT_SIZE,
+  showSlideNumber: true,
+  withImages: false,
+  dimensions: { width: 1080, height: 1080 },
+};

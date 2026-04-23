@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
-import type { Slide, CarouselStyle, UserProfile, FontFamily, FontSize, TextAlign } from "@/types/carousel";
+import type { Slide, CarouselStyle, UserProfile } from "@/types/carousel";
+import { DEFAULT_FONT_SIZE } from "@/types/carousel";
 
 interface CarouselStore {
   slides: Slide[];
@@ -8,39 +9,34 @@ interface CarouselStore {
   profile: UserProfile;
   activeSlideId: string | null;
 
-  // Bulk actions (used by generator)
-  setSlides: (slides: Slide[]) => void;
-  setStyle: (style: CarouselStyle) => void;
+  // Bulk (used by generator)
+  setSlides:  (slides: Slide[]) => void;
+  setStyle:   (style: CarouselStyle) => void;
   setProfile: (profile: UserProfile) => void;
 
   // Slide actions
-  addSlide: () => void;
-  removeSlide: (id: string) => void;
-  updateSlide: (id: string, data: Partial<Omit<Slide, "id" | "order">>) => void;
+  addSlide:      () => void;
+  removeSlide:   (id: string) => void;
+  updateSlide:   (id: string, data: Partial<Omit<Slide, "id" | "order">>) => void;
   reorderSlides: (activeId: string, overId: string) => void;
-  setActiveSlide: (id: string | null) => void;
+  setActiveSlide:(id: string | null) => void;
 
   // Style actions
-  setBackgroundColor: (color: string) => void;
-  setTextColor: (color: string) => void;
-  setFontFamily: (font: FontFamily) => void;
-  setFontSize: (size: FontSize) => void;
-  setTextAlign: (align: TextAlign) => void;
-  setShowSlideNumber: (show: boolean) => void;
-  setDimensions: (width: number, height: number) => void;
+  setFontSize:       (size: number) => void;
+  setShowSlideNumber:(show: boolean) => void;
+  setDimensions:     (width: number, height: number) => void;
+  setMode:           (dark: boolean) => void;
 
   // Profile actions
-  setHandle: (handle: string) => void;
+  setHandle:      (handle: string) => void;
   setDisplayName: (name: string) => void;
-  setAvatarUrl: (url: string) => void;
+  setAvatarUrl:   (url: string) => void;
 }
 
 const defaultStyle: CarouselStyle = {
   backgroundColor: "#15202B",
   textColor: "#FFFFFF",
-  fontFamily: "Inter",
-  fontSize: "medium",
-  textAlign: "left",
+  fontSize: DEFAULT_FONT_SIZE,
   showSlideNumber: true,
   withImages: false,
   dimensions: { width: 1080, height: 1080 },
@@ -60,8 +56,8 @@ export const useCarouselStore = create<CarouselStore>((set) => ({
   profile: { handle: "@usuario", displayName: "Usuário" },
   activeSlideId: null,
 
-  setSlides: (slides) => set({ slides }),
-  setStyle: (style) => set({ style }),
+  setSlides:  (slides)  => set({ slides }),
+  setStyle:   (style)   => set({ style }),
   setProfile: (profile) => set({ profile }),
 
   addSlide: () =>
@@ -72,10 +68,11 @@ export const useCarouselStore = create<CarouselStore>((set) => ({
   removeSlide: (id) =>
     set((state) => {
       if (state.slides.length <= 1) return state;
-      const filtered = state.slides
-        .filter((s) => s.id !== id)
-        .map((s, i) => ({ ...s, order: i }));
-      return { slides: filtered };
+      return {
+        slides: state.slides
+          .filter((s) => s.id !== id)
+          .map((s, i) => ({ ...s, order: i })),
+      };
     }),
 
   updateSlide: (id, data) =>
@@ -85,31 +82,19 @@ export const useCarouselStore = create<CarouselStore>((set) => ({
 
   reorderSlides: (activeId, overId) =>
     set((state) => {
-      const oldIndex = state.slides.findIndex((s) => s.id === activeId);
-      const newIndex = state.slides.findIndex((s) => s.id === overId);
-      if (oldIndex === -1 || newIndex === -1) return state;
+      const oldIdx = state.slides.findIndex((s) => s.id === activeId);
+      const newIdx = state.slides.findIndex((s) => s.id === overId);
+      if (oldIdx === -1 || newIdx === -1) return state;
       const reordered = [...state.slides];
-      const [moved] = reordered.splice(oldIndex, 1);
-      reordered.splice(newIndex, 0, moved);
+      const [moved] = reordered.splice(oldIdx, 1);
+      reordered.splice(newIdx, 0, moved);
       return { slides: reordered.map((s, i) => ({ ...s, order: i })) };
     }),
 
   setActiveSlide: (id) => set({ activeSlideId: id }),
 
-  setBackgroundColor: (color) =>
-    set((state) => ({ style: { ...state.style, backgroundColor: color } })),
-
-  setTextColor: (color) =>
-    set((state) => ({ style: { ...state.style, textColor: color } })),
-
-  setFontFamily: (font) =>
-    set((state) => ({ style: { ...state.style, fontFamily: font } })),
-
   setFontSize: (size) =>
     set((state) => ({ style: { ...state.style, fontSize: size } })),
-
-  setTextAlign: (align) =>
-    set((state) => ({ style: { ...state.style, textAlign: align } })),
 
   setShowSlideNumber: (show) =>
     set((state) => ({ style: { ...state.style, showSlideNumber: show } })),
@@ -117,12 +102,16 @@ export const useCarouselStore = create<CarouselStore>((set) => ({
   setDimensions: (width, height) =>
     set((state) => ({ style: { ...state.style, dimensions: { width, height } } })),
 
-  setHandle: (handle) =>
-    set((state) => ({ profile: { ...state.profile, handle } })),
+  setMode: (dark) =>
+    set((state) => ({
+      style: {
+        ...state.style,
+        backgroundColor: dark ? "#15202B" : "#FFFFFF",
+        textColor:       dark ? "#FFFFFF" : "#0F1419",
+      },
+    })),
 
-  setDisplayName: (displayName) =>
-    set((state) => ({ profile: { ...state.profile, displayName } })),
-
-  setAvatarUrl: (avatarUrl) =>
-    set((state) => ({ profile: { ...state.profile, avatarUrl } })),
+  setHandle:      (handle)      => set((state) => ({ profile: { ...state.profile, handle } })),
+  setDisplayName: (displayName) => set((state) => ({ profile: { ...state.profile, displayName } })),
+  setAvatarUrl:   (avatarUrl)   => set((state) => ({ profile: { ...state.profile, avatarUrl } })),
 }));

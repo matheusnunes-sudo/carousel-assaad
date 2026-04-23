@@ -3,17 +3,14 @@ export interface Slide {
   title?: string;
   body: string;
   footer?: string;
-  imagePrompt?: string; // AI-suggested image description
-  imageUrl?: string;    // user-supplied image URL
+  imageUrl?: string;
   order: number;
 }
 
 export interface CarouselStyle {
   backgroundColor: string;
   textColor: string;
-  fontFamily: FontFamily;
-  fontSize: FontSize;
-  textAlign: TextAlign;
+  fontSize: number;       // body font size in px (preview CSS scale)
   showSlideNumber: boolean;
   withImages: boolean;
   dimensions: { width: number; height: number };
@@ -25,43 +22,17 @@ export interface UserProfile {
   avatarUrl?: string;
 }
 
-export interface Template {
-  id: string;
-  name: string;
-  description: string;
-  thumbnail?: string;
-  style: CarouselStyle;
+/** Compute title / body / footer sizes from a single body size value */
+export function getFontSizes(bodyPx: number) {
+  return {
+    title:  Math.round(bodyPx * 1.6),
+    body:   bodyPx,
+    footer: Math.round(bodyPx * 0.65),
+  };
 }
 
-export interface CarouselProject {
-  id: string;
-  slides: Slide[];
-  style: CarouselStyle;
-  profile: UserProfile;
-  templateId: string;
-  createdAt: Date;
-}
+export const TWITTER_DARK  = { backgroundColor: "#15202B", textColor: "#FFFFFF" } as const;
+export const TWITTER_LIGHT = { backgroundColor: "#FFFFFF", textColor: "#0F1419" } as const;
 
-export type FontFamily =
-  | "Inter"
-  | "Space Grotesk"
-  | "Playfair Display"
-  | "JetBrains Mono"
-  | "Outfit";
-
-export type FontSize = "small" | "medium" | "large";
-export type TextAlign = "left" | "center";
-
-export const FONT_SIZE_MAP: Record<FontSize, { title: string; body: string; footer: string }> = {
-  small:  { title: "28px", body: "18px", footer: "14px" },
-  medium: { title: "36px", body: "22px", footer: "16px" },
-  large:  { title: "48px", body: "28px", footer: "18px" },
-};
-
-export const FONT_FAMILY_MAP: Record<FontFamily, string> = {
-  "Inter":             "'Inter', sans-serif",
-  "Space Grotesk":     "'Space Grotesk', sans-serif",
-  "Playfair Display":  "'Playfair Display', serif",
-  "JetBrains Mono":   "'JetBrains Mono', monospace",
-  "Outfit":            "'Outfit', sans-serif",
-};
+export const FONT_FAMILY = "'Inter', sans-serif";
+export const DEFAULT_FONT_SIZE = 22; // px
