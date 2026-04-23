@@ -13,7 +13,6 @@
     "react": "^18",
     "react-dom": "^18",
     "zustand": "^4.5.4",
-    "@anthropic-ai/sdk": "^0.39.0",
     "jszip": "^3.10.1",
     "file-saver": "^2.0.5",
     "@dnd-kit/core": "^6.1.0",

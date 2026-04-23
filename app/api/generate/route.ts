@@ -1,7 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Uses Groq (free tier) — no SDK needed, plain fetch against OpenAI-compatible API
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.3-70b-versatile"; // fast + free
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,15 +42,31 @@ Regras de conteúdo:
 - Slides 2 a ${slideCount - 1}: um ponto de valor por slide, body com no máx 3-4 linhas
 - Slide ${slideCount}: call to action claro (salvar, seguir, comentar)
 - Linguagem: clara, sem jargão desnecessário, crie urgência ou curiosidade
-- Body: use quebras de linha \\n para separar ideias dentro do mesmo slide`;
+- Body: use quebras de linha \\n para separar ideias dentro do mesmo slide
+- Retorne SOMENTE o array JSON, nada mais`;
 
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 2048,
-      messages: [{ role: "user", content: prompt }],
+    const response = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 2048,
+        temperature: 0.7,
+      }),
     });
 
-    const text = message.content[0].type === "text" ? message.content[0].text : "";
+    if (!response.ok) {
+      const err = await response.text();
+      console.error("Groq API error:", err);
+      return NextResponse.json({ error: "Erro na API de IA" }, { status: 500 });
+    }
+
+    const data = await response.json();
+    const text: string = data.choices?.[0]?.message?.content ?? "";
 
     // Extract JSON array from the response
     const jsonMatch = text.match(/\[[\s\S]*\]/);
