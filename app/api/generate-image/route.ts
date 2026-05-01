@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Valid aspect ratios supported by Nano Banana
-const ASPECT_RATIO_MAP: Record<string, string> = {
-  "1:1": "1:1",
-  "4:5": "9:16", // closest portrait fallback
-  "9:16": "9:16",
-  "16:9": "16:9",
-};
+// Tell Vercel to allow up to 110 seconds for this serverless function
+export const maxDuration = 110;
+
+const BASE = "https://api.nanobananaapi.ai";
+const GENERATE_URL = `${BASE}/api/v1/nanobanana/generate`;
+const STATUS_URL   = `${BASE}/api/v1/nanobanana/record-info`;
+
+// successFlag values returned by the polling endpoint
+const FLAG_PENDING  = 0;
+const FLAG_DONE     = 1;
+const FLAG_FAILED_CREATION = 2;
+const FLAG_FAILED_GEN      = 3;
+
+const POLL_INTERVAL_MS = 3000;  // poll every 3s
+const POLL_TIMEOUT_MS  = 90000; // give up after 90s
 
 export async function GET(req: NextRequest) {
   const prompt = req.nextUrl.searchParams.get("prompt") ?? "";
-  const ratio  = req.nextUrl.searchParams.get("ratio")  ?? "1:1";
 
   if (!prompt.trim()) {
     return NextResponse.json({ error: "prompt required" }, { status: 400 });
@@ -18,73 +25,106 @@ export async function GET(req: NextRequest) {
 
   const apiKey = process.env.NANOBANANA_API_KEY;
   if (!apiKey || apiKey.startsWith("SUBSTITUA")) {
-    return NextResponse.json({ error: "NANOBANANA_API_KEY not configured" }, { status: 500 });
+    return NextResponse.json({ error: "NANOBANANA_API_KEY não configurada" }, { status: 500 });
   }
 
   const enrichedPrompt = `${prompt.trim()}, high quality, modern, professional, social media visual`;
-  const aspectRatio    = ASPECT_RATIO_MAP[ratio] ?? "1:1";
 
-  // Try multiple base URLs in case one fails
-  const endpoints = [
-    "https://nanobanana.expert/api/v1/generate",
-    "https://nanobananaapi.ai/api/v1/generate",
-  ];
+  // ── Step 1: Submit generation job ──────────────────────────────────────────
+  let taskId: string;
+  try {
+    const res = await fetch(GENERATE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        prompt:     enrichedPrompt,
+        type:       "TEXTTOIAMGE",   // NB API typo — must be exactly this
+        numImages:  1,
+        callBackUrl: "https://placeholder.invalid/noop", // required field, not used
+      }),
+    });
 
-  let lastError = "";
+    const text = await res.text();
+    console.log("[generate-image] submit:", res.status, text.slice(0, 400));
 
-  for (const endpoint of endpoints) {
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: `Submissão falhou (${res.status}): ${text.slice(0, 200)}` },
+        { status: res.status }
+      );
+    }
+
+    const json = JSON.parse(text);
+    taskId = json?.data?.taskId;
+
+    if (!taskId) {
+      return NextResponse.json(
+        { error: `taskId não encontrado na resposta: ${text.slice(0, 200)}` },
+        { status: 502 }
+      );
+    }
+  } catch (err) {
+    console.error("[generate-image] submit error:", err);
+    return NextResponse.json({ error: `Erro na submissão: ${String(err)}` }, { status: 500 });
+  }
+
+  // ── Step 2: Poll until image is ready ──────────────────────────────────────
+  const deadline = Date.now() + POLL_TIMEOUT_MS;
+
+  while (Date.now() < deadline) {
+    await sleep(POLL_INTERVAL_MS);
+
     try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type":  "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          prompt:        enrichedPrompt,
-          model:         "nb2",
-          quality:       "medium",
-          aspect_ratio:  aspectRatio,
-          resolution:    "1k",
-          output_format: "webp",
-        }),
+      const res = await fetch(`${STATUS_URL}?taskId=${encodeURIComponent(taskId)}`, {
+        headers: { "Authorization": `Bearer ${apiKey}` },
       });
 
       const text = await res.text();
-      console.log(`[generate-image] ${endpoint} → ${res.status}:`, text.slice(0, 300));
+      console.log("[generate-image] poll:", res.status, text.slice(0, 400));
 
-      if (!res.ok) {
-        lastError = `${endpoint}: HTTP ${res.status} — ${text.slice(0, 200)}`;
-        continue; // try next endpoint
+      if (!res.ok) continue; // transient error, keep polling
+
+      const json = JSON.parse(text);
+      const flag: number = json?.data?.successFlag ?? json?.successFlag ?? FLAG_PENDING;
+
+      if (flag === FLAG_DONE) {
+        const imageUrl: string =
+          json?.data?.resultImageUrl ??
+          json?.resultImageUrl ??
+          json?.data?.imageUrl;
+
+        if (!imageUrl) {
+          return NextResponse.json(
+            { error: `Imagem gerada mas URL ausente: ${text.slice(0, 200)}` },
+            { status: 502 }
+          );
+        }
+        return NextResponse.json({ imageUrl });
       }
 
-      let data: Record<string, unknown>;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        lastError = `${endpoint}: invalid JSON — ${text.slice(0, 200)}`;
-        continue;
+      if (flag === FLAG_FAILED_CREATION || flag === FLAG_FAILED_GEN) {
+        return NextResponse.json(
+          { error: `Geração falhou (successFlag=${flag})` },
+          { status: 502 }
+        );
       }
 
-      // Nano Banana may return image_url or url
-      const imageUrl =
-        (data.image_url as string) ||
-        (data.url      as string) ||
-        (data.imageUrl as string);
-
-      if (!imageUrl) {
-        lastError = `${endpoint}: no image URL in response — ${text.slice(0, 200)}`;
-        continue;
-      }
-
-      return NextResponse.json({ imageUrl, bananas_spent: data.bananas_spent ?? null });
-
+      // flag === FLAG_PENDING → keep polling
     } catch (err) {
-      lastError = `${endpoint}: ${String(err)}`;
-      console.error("[generate-image] fetch error:", endpoint, err);
+      console.error("[generate-image] poll error:", err);
+      // transient — keep polling
     }
   }
 
-  console.error("[generate-image] all endpoints failed:", lastError);
-  return NextResponse.json({ error: lastError }, { status: 502 });
+  return NextResponse.json(
+    { error: "Timeout: a imagem demorou mais de 90s para gerar" },
+    { status: 504 }
+  );
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
