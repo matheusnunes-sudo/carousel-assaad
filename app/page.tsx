@@ -36,11 +36,12 @@ export default function HomePage() {
 
     if (newStyle.withImages) {
       setSearchingImages(true);
+      const ratio = newStyle.dimensions.height === 1350 ? "4:5" : "1:1";
       for (const slide of newSlides) {
-        const query = (slide.title || slide.body).slice(0, 80).trim();
-        if (!query) continue;
+        const prompt = [slide.title, slide.body].filter(Boolean).join(" — ").slice(0, 200).trim();
+        if (!prompt) continue;
         try {
-          const res  = await fetch(`/api/search-image?q=${encodeURIComponent(query)}`);
+          const res  = await fetch(`/api/generate-image?prompt=${encodeURIComponent(prompt)}&ratio=${ratio}`);
           const data = await res.json();
           if (data.imageUrl) updateSlide(slide.id, { imageUrl: data.imageUrl });
         } catch { /* silently skip */ }

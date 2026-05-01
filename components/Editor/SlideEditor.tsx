@@ -29,23 +29,10 @@ interface SlideEditorProps {
 
 export default function SlideEditor({ slide, index, isActive, onClick, onRemove }: SlideEditorProps) {
   const { updateSlide, slides, style } = useCarouselStore();
-  const [searching, setSearching]     = useState(false);
-  const [generating, setGenerating]   = useState(false);
+  const [generating, setGenerating] = useState(false);
   const bodyChars   = slide.body.length;
   const isOverLimit = bodyChars > MAX_CHARS;
 
-  /** Search Unsplash for a photo matching the slide text */
-  const handleSearchImage = async () => {
-    const query = (slide.title || slide.body).slice(0, 80).trim();
-    if (!query) return;
-    setSearching(true);
-    try {
-      const res  = await fetch(`/api/search-image?q=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      if (data.imageUrl) updateSlide(slide.id, { imageUrl: data.imageUrl });
-    } catch { /* fail silently */ }
-    finally { setSearching(false); }
-  };
 
   /** Generate an AI image with Nano Banana */
   const handleGenerateImage = async () => {
@@ -61,7 +48,7 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
     finally { setGenerating(false); }
   };
 
-  const busy = searching || generating;
+  const busy = generating;
 
   return (
     <div
@@ -105,46 +92,24 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
           style={{ fontSize: 12, marginBottom: 6 }}
         />
 
-        {/* Action buttons */}
-        <div style={{ display: "flex", gap: 6 }}>
-          {/* Unsplash */}
-          <button
-            onClick={handleSearchImage}
-            disabled={busy}
-            title="Buscar foto no Unsplash"
-            style={{
-              flex: 1, height: 30, borderRadius: "var(--r-sm)",
-              background: "var(--bg-secondary)", border: "1px solid var(--sep-opaque)",
-              color: "var(--text-secondary)", cursor: busy ? "not-allowed" : "pointer",
-              fontSize: 11, fontWeight: 600,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-              opacity: busy ? 0.5 : 1, transition: "background 0.15s",
-            }}
-            onMouseEnter={(e) => { if (!busy) e.currentTarget.style.background = "var(--sep)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-secondary)"; }}
-          >
-            {searching ? <Spinner /> : "🔍"} Unsplash
-          </button>
-
-          {/* Nano Banana */}
-          <button
-            onClick={handleGenerateImage}
-            disabled={busy}
-            title="Gerar imagem com Nano Banana IA"
-            style={{
-              flex: 1, height: 30, borderRadius: "var(--r-sm)",
-              background: "var(--blue)", border: "none",
-              color: "white", cursor: busy ? "not-allowed" : "pointer",
-              fontSize: 11, fontWeight: 600,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-              opacity: busy ? 0.65 : 1, transition: "background 0.15s",
-            }}
-            onMouseEnter={(e) => { if (!busy) e.currentTarget.style.background = "var(--blue-hover)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--blue)"; }}
-          >
-            {generating ? <Spinner white /> : "🍌"} Gerar com IA
-          </button>
-        </div>
+        {/* Generate button */}
+        <button
+          onClick={handleGenerateImage}
+          disabled={busy}
+          title="Gerar imagem com Nano Banana IA"
+          style={{
+            width: "100%", height: 32, borderRadius: "var(--r-sm)",
+            background: "var(--blue)", border: "none",
+            color: "white", cursor: busy ? "not-allowed" : "pointer",
+            fontSize: 12, fontWeight: 600,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+            opacity: busy ? 0.65 : 1, transition: "background 0.15s",
+          }}
+          onMouseEnter={(e) => { if (!busy) e.currentTarget.style.background = "var(--blue-hover)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "var(--blue)"; }}
+        >
+          {generating ? <Spinner white /> : "🍌"} Gerar imagem com IA
+        </button>
 
         {/* Preview thumbnail */}
         {slide.imageUrl && (

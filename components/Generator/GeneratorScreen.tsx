@@ -194,11 +194,11 @@ export default function GeneratorScreen({ onCreated }: Props) {
               <p className="section-title">Imagens</p>
               <div className="seg-ctrl" style={{ width: "100%" }}>
                 <button onClick={() => setWithImages(false)} className={clsx("tab flex-1 text-center", !withImages && "active")}>Só texto</button>
-                <button onClick={() => setWithImages(true)}  className={clsx("tab flex-1 text-center", withImages  && "active")}>Com imagens (Unsplash)</button>
+                <button onClick={() => setWithImages(true)}  className={clsx("tab flex-1 text-center", withImages  && "active")}>🍌 Com imagens (IA)</button>
               </div>
               {withImages && (
                 <p style={{ marginTop: 6, fontSize: 11, color: "var(--text-tertiary)" }}>
-                  Imagens buscadas automaticamente no Unsplash.
+                  Imagens geradas com IA (Nano Banana) para cada slide.
                 </p>
               )}
             </div>
