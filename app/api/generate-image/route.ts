@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Imagen 3 is synchronous — no polling needed, response comes back in seconds
 export const maxDuration = 60;
 
-const MODEL = "imagen-3.0-generate-002";
+// Gemini 2.0 Flash image generation — works with Google AI Studio keys
+const MODEL = "gemini-2.0-flash-preview-image-generation";
 
 export async function GET(req: NextRequest) {
   const prompt = req.nextUrl.searchParams.get("prompt") ?? "";
-  const ratio  = req.nextUrl.searchParams.get("ratio")  ?? "1:1";
 
   if (!prompt.trim()) {
     return NextResponse.json({ error: "prompt required" }, { status: 400 });
@@ -18,52 +17,46 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "GOOGLE_AI_API_KEY não configurada" }, { status: 500 });
   }
 
-  // Map carousel dimensions to Imagen 3 aspect ratios
-  // Valid values: "1:1" | "3:4" | "4:3" | "9:16" | "16:9"
-  const aspectRatio = ratio === "4:5" ? "3:4" : "1:1";
+  const enrichedPrompt = `${prompt.trim()}, high quality, modern, clean, professional social media visual, no text, no words`;
 
-  const enrichedPrompt = `${prompt.trim()}, high quality, modern, clean design, professional, social media visual`;
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:predict?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
 
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        instances: [{ prompt: enrichedPrompt }],
-        parameters: {
-          sampleCount:  1,
-          aspectRatio,
-          personGeneration: "dont_allow",
-        },
+        contents: [{ parts: [{ text: enrichedPrompt }] }],
+        generationConfig: { responseModalities: ["IMAGE"] },
       }),
     });
 
     const text = await res.text();
-    console.log("[generate-image] Imagen response:", res.status, text.slice(0, 300));
+    console.log("[generate-image] response:", res.status, text.slice(0, 400));
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: `Google Imagen error (${res.status}): ${text.slice(0, 300)}` },
+        { error: `Google AI error (${res.status}): ${text.slice(0, 300)}` },
         { status: res.status }
       );
     }
 
     const json = JSON.parse(text);
-    const prediction = json?.predictions?.[0];
-    const b64: string | undefined = prediction?.bytesBase64Encoded;
-    const mime: string = prediction?.mimeType ?? "image/jpeg";
 
-    if (!b64) {
+    // Image is in candidates[0].content.parts[].inlineData
+    const parts = json?.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = parts.find((p: { inlineData?: { data: string; mimeType: string } }) => p.inlineData);
+
+    if (!imagePart?.inlineData) {
       return NextResponse.json(
         { error: `Sem imagem na resposta: ${text.slice(0, 200)}` },
         { status: 502 }
       );
     }
 
-    // Return as a data URL — works in <img> tags and canvas drawImage()
-    const imageUrl = `data:${mime};base64,${b64}`;
+    const { data: b64, mimeType } = imagePart.inlineData;
+    const imageUrl = `data:${mimeType};base64,${b64}`;
+
     return NextResponse.json({ imageUrl });
 
   } catch (err) {
