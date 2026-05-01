@@ -2,8 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const maxDuration = 60;
 
-// Gemini 2.0 Flash image generation — works with Google AI Studio keys
-const MODEL = "gemini-2.0-flash-preview-image-generation";
+// Try newest first, fall back to older models if 404
+const MODEL_CANDIDATES = [
+  "gemini-3.1-flash-image-preview",
+  "gemini-3-pro-image-preview",
+  "gemini-2.5-flash-image-preview",
+  "gemini-2.5-flash-image",
+  "gemini-2.0-flash-exp",
+];
+
+async function tryGenerate(model: string, apiKey: string, prompt: string) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ["IMAGE"] },
+    }),
+  });
+
+  const text = await res.text();
+  return { status: res.status, text, model };
+}
 
 export async function GET(req: NextRequest) {
   const prompt = req.nextUrl.searchParams.get("prompt") ?? "";
@@ -17,50 +39,49 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "GOOGLE_AI_API_KEY não configurada" }, { status: 500 });
   }
 
-  const enrichedPrompt = `${prompt.trim()}, high quality, modern, clean, professional social media visual, no text, no words`;
+  const enrichedPrompt = `Generate an image: ${prompt.trim()}. High quality, modern, clean, professional social media visual, no text or words in the image.`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
+  let lastError = "";
 
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: enrichedPrompt }] }],
-        generationConfig: { responseModalities: ["IMAGE"] },
-      }),
-    });
+  for (const model of MODEL_CANDIDATES) {
+    try {
+      const { status, text } = await tryGenerate(model, apiKey, enrichedPrompt);
+      console.log(`[generate-image] ${model} → ${status}: ${text.slice(0, 200)}`);
 
-    const text = await res.text();
-    console.log("[generate-image] response:", res.status, text.slice(0, 400));
+      // Skip on "not found" errors and try next model
+      if (status === 404) {
+        lastError = `${model}: 404 not found`;
+        continue;
+      }
 
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `Google AI error (${res.status}): ${text.slice(0, 300)}` },
-        { status: res.status }
+      if (status !== 200) {
+        lastError = `${model} (${status}): ${text.slice(0, 250)}`;
+        continue;
+      }
+
+      const json = JSON.parse(text);
+      const parts = json?.candidates?.[0]?.content?.parts ?? [];
+      const imagePart = parts.find(
+        (p: { inlineData?: { data: string; mimeType: string } }) => p.inlineData
       );
+
+      if (!imagePart?.inlineData) {
+        lastError = `${model}: sem inlineData na resposta`;
+        continue;
+      }
+
+      const { data: b64, mimeType } = imagePart.inlineData;
+      const imageUrl = `data:${mimeType};base64,${b64}`;
+      return NextResponse.json({ imageUrl, model });
+
+    } catch (err) {
+      lastError = `${model}: ${String(err)}`;
+      console.error(`[generate-image] ${model} threw:`, err);
     }
-
-    const json = JSON.parse(text);
-
-    // Image is in candidates[0].content.parts[].inlineData
-    const parts = json?.candidates?.[0]?.content?.parts ?? [];
-    const imagePart = parts.find((p: { inlineData?: { data: string; mimeType: string } }) => p.inlineData);
-
-    if (!imagePart?.inlineData) {
-      return NextResponse.json(
-        { error: `Sem imagem na resposta: ${text.slice(0, 200)}` },
-        { status: 502 }
-      );
-    }
-
-    const { data: b64, mimeType } = imagePart.inlineData;
-    const imageUrl = `data:${mimeType};base64,${b64}`;
-
-    return NextResponse.json({ imageUrl });
-
-  } catch (err) {
-    console.error("[generate-image] error:", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
+
+  return NextResponse.json(
+    { error: `Nenhum modelo funcionou. Último erro: ${lastError}` },
+    { status: 502 }
+  );
 }
