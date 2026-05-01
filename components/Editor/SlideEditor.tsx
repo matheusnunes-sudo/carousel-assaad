@@ -7,6 +7,18 @@ import clsx from "clsx";
 
 const MAX_CHARS = 280;
 
+function Spinner({ white }: { white?: boolean }) {
+  return (
+    <span style={{
+      display: "inline-block", width: 10, height: 10,
+      border: `2px solid ${white ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.15)"}`,
+      borderTopColor: white ? "white" : "var(--text-secondary)",
+      borderRadius: "50%",
+      animation: "spin 0.6s linear infinite",
+    }} />
+  );
+}
+
 interface SlideEditorProps {
   slide: Slide;
   index: number;
@@ -17,10 +29,12 @@ interface SlideEditorProps {
 
 export default function SlideEditor({ slide, index, isActive, onClick, onRemove }: SlideEditorProps) {
   const { updateSlide, slides, style } = useCarouselStore();
-  const [searching, setSearching] = useState(false);
+  const [searching, setSearching]     = useState(false);
+  const [generating, setGenerating]   = useState(false);
   const bodyChars   = slide.body.length;
   const isOverLimit = bodyChars > MAX_CHARS;
 
+  /** Search Unsplash for a photo matching the slide text */
   const handleSearchImage = async () => {
     const query = (slide.title || slide.body).slice(0, 80).trim();
     if (!query) return;
@@ -33,12 +47,31 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
     finally { setSearching(false); }
   };
 
+  /** Generate an AI image with Nano Banana */
+  const handleGenerateImage = async () => {
+    const prompt = [slide.title, slide.body].filter(Boolean).join(" — ").slice(0, 200).trim();
+    if (!prompt) return;
+    setGenerating(true);
+    try {
+      const ratio = style.dimensions.height === 1350 ? "4:5" : "1:1";
+      const res   = await fetch(`/api/generate-image?prompt=${encodeURIComponent(prompt)}&ratio=${ratio}`);
+      const data  = await res.json();
+      if (data.imageUrl) updateSlide(slide.id, { imageUrl: data.imageUrl });
+    } catch { /* fail silently */ }
+    finally { setGenerating(false); }
+  };
+
+  const busy = searching || generating;
+
   return (
     <div
       onClick={onClick}
       className={clsx("card cursor-pointer transition-all duration-150", isActive && "selected")}
       style={{ padding: "14px 14px 12px" }}
     >
+      {/* ── @keyframes (injected once per instance; deduplicated by browser) ── */}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <span style={{
@@ -58,46 +91,72 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
         </button>
       </div>
 
-      {/* Image field */}
-      {style.withImages && (
-        <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-          <label className="label">Imagem</label>
-          <div className="flex gap-1.5">
-            <input
-              type="url"
-              value={slide.imageUrl ?? ""}
-              onChange={(e) => updateSlide(slide.id, { imageUrl: e.target.value })}
-              placeholder="URL da imagem…"
-              className="input-base flex-1"
-              style={{ fontSize: 12 }}
-            />
-            <button
-              onClick={handleSearchImage}
-              disabled={searching}
-              title="Buscar no Unsplash"
-              style={{
-                flexShrink: 0, width: 36, height: 36,
-                borderRadius: "var(--r-sm)",
-                background: "var(--blue-tint)",
-                color: "var(--blue)",
-                border: "none", cursor: "pointer", fontSize: 15,
-                opacity: searching ? 0.6 : 1,
-              }}
-            >
-              {searching ? "…" : "🔍"}
-            </button>
-          </div>
-          {slide.imageUrl && (
-            <img
-              src={slide.imageUrl} alt=""
-              style={{ marginTop: 8, width: "100%", height: 72, objectFit: "cover", borderRadius: "var(--r-sm)" }}
-              onError={(e) => (e.currentTarget.style.display = "none")}
-            />
-          )}
-        </div>
-      )}
+      {/* ── Image section ──────────────────────────────────────────────── */}
+      <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+        <label className="label">Imagem</label>
 
-      {/* Title */}
+        {/* URL input */}
+        <input
+          type="url"
+          value={slide.imageUrl ?? ""}
+          onChange={(e) => updateSlide(slide.id, { imageUrl: e.target.value })}
+          placeholder="Cole uma URL ou use os botões abaixo…"
+          className="input-base"
+          style={{ fontSize: 12, marginBottom: 6 }}
+        />
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: 6 }}>
+          {/* Unsplash */}
+          <button
+            onClick={handleSearchImage}
+            disabled={busy}
+            title="Buscar foto no Unsplash"
+            style={{
+              flex: 1, height: 30, borderRadius: "var(--r-sm)",
+              background: "var(--bg-secondary)", border: "1px solid var(--sep-opaque)",
+              color: "var(--text-secondary)", cursor: busy ? "not-allowed" : "pointer",
+              fontSize: 11, fontWeight: 600,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+              opacity: busy ? 0.5 : 1, transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => { if (!busy) e.currentTarget.style.background = "var(--sep)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-secondary)"; }}
+          >
+            {searching ? <Spinner /> : "🔍"} Unsplash
+          </button>
+
+          {/* Nano Banana */}
+          <button
+            onClick={handleGenerateImage}
+            disabled={busy}
+            title="Gerar imagem com Nano Banana IA"
+            style={{
+              flex: 1, height: 30, borderRadius: "var(--r-sm)",
+              background: "var(--blue)", border: "none",
+              color: "white", cursor: busy ? "not-allowed" : "pointer",
+              fontSize: 11, fontWeight: 600,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+              opacity: busy ? 0.65 : 1, transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => { if (!busy) e.currentTarget.style.background = "var(--blue-hover)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--blue)"; }}
+          >
+            {generating ? <Spinner white /> : "🍌"} Gerar com IA
+          </button>
+        </div>
+
+        {/* Preview thumbnail */}
+        {slide.imageUrl && (
+          <img
+            src={slide.imageUrl} alt=""
+            style={{ marginTop: 8, width: "100%", height: 72, objectFit: "cover", borderRadius: "var(--r-sm)" }}
+            onError={(e) => (e.currentTarget.style.display = "none")}
+          />
+        )}
+      </div>
+
+      {/* ── Title ──────────────────────────────────────────────────────── */}
       <div className="mb-2" onClick={(e) => e.stopPropagation()}>
         <label className="label" htmlFor={`title-${slide.id}`}>Título (opcional)</label>
         <input
@@ -110,7 +169,7 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
         />
       </div>
 
-      {/* Body */}
+      {/* ── Body ───────────────────────────────────────────────────────── */}
       <div className="mb-2" onClick={(e) => e.stopPropagation()}>
         <label className="label" htmlFor={`body-${slide.id}`}>Texto principal</label>
         <textarea
@@ -131,7 +190,7 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
         </div>
       </div>
 
-      {/* Footer */}
+      {/* ── Footer ─────────────────────────────────────────────────────── */}
       <div onClick={(e) => e.stopPropagation()}>
         <label className="label" htmlFor={`footer-${slide.id}`}>Rodapé (opcional)</label>
         <input
