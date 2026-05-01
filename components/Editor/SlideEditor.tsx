@@ -30,6 +30,7 @@ interface SlideEditorProps {
 export default function SlideEditor({ slide, index, isActive, onClick, onRemove }: SlideEditorProps) {
   const { updateSlide, slides, style } = useCarouselStore();
   const [generating, setGenerating] = useState(false);
+  const [genError, setGenError]     = useState("");
   const bodyChars   = slide.body.length;
   const isOverLimit = bodyChars > MAX_CHARS;
 
@@ -39,13 +40,21 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
     const prompt = [slide.title, slide.body].filter(Boolean).join(" — ").slice(0, 200).trim();
     if (!prompt) return;
     setGenerating(true);
+    setGenError("");
     try {
       const ratio = style.dimensions.height === 1350 ? "4:5" : "1:1";
       const res   = await fetch(`/api/generate-image?prompt=${encodeURIComponent(prompt)}&ratio=${ratio}`);
       const data  = await res.json();
-      if (data.imageUrl) updateSlide(slide.id, { imageUrl: data.imageUrl });
-    } catch { /* fail silently */ }
-    finally { setGenerating(false); }
+      if (data.imageUrl) {
+        updateSlide(slide.id, { imageUrl: data.imageUrl });
+      } else {
+        setGenError(data.error ?? "Erro desconhecido");
+      }
+    } catch (e) {
+      setGenError(String(e));
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const busy = generating;
@@ -110,6 +119,13 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
         >
           {generating ? <Spinner white /> : "🍌"} Gerar imagem com IA
         </button>
+
+        {/* Error message */}
+        {genError && (
+          <p style={{ marginTop: 6, fontSize: 10, color: "var(--red)", wordBreak: "break-all" }}>
+            ⚠️ {genError}
+          </p>
+        )}
 
         {/* Preview thumbnail */}
         {slide.imageUrl && (
