@@ -18,7 +18,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useCarouselStore } from "@/lib/store";
 import SlideEditor from "./SlideEditor";
-import Button from "@/components/ui/Button";
 import type { Slide } from "@/types/carousel";
 
 function SortableSlide({
@@ -41,7 +40,7 @@ function SortableSlide({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 10 : "auto",
+    zIndex: isDragging ? 10 : "auto" as const,
   };
 
   return (
@@ -51,7 +50,23 @@ function SortableSlide({
         {...attributes}
         {...listeners}
         title="Arrastar para reordenar"
-        className="absolute -left-1 top-1/2 -translate-y-1/2 -translate-x-full w-5 h-10 flex items-center justify-center text-assaad-gray-200 hover:text-assaad-gray-500 cursor-grab active:cursor-grabbing transition-colors"
+        style={{
+          position: "absolute",
+          left: -20,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 16,
+          height: 36,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "none",
+          border: "none",
+          cursor: "grab",
+          color: "var(--text-tertiary)",
+          fontSize: 12,
+          padding: 0,
+        }}
       >
         ⠿
       </button>
@@ -72,9 +87,7 @@ export default function SlideList() {
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -85,17 +98,10 @@ export default function SlideList() {
   };
 
   return (
-    <div className="space-y-3">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={slides.map((s) => s.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="space-y-3 pl-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingTop: 4 }}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={slides.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingLeft: 24 }}>
             {slides.map((slide, index) => (
               <SortableSlide
                 key={slide.id}
@@ -110,13 +116,13 @@ export default function SlideList() {
         </SortableContext>
       </DndContext>
 
-      <Button
-        variant="outline"
+      <button
         onClick={addSlide}
-        className="w-full"
+        className="btn-secondary"
+        style={{ width: "100%", fontSize: 13, marginTop: 4 }}
       >
         + Adicionar slide
-      </Button>
+      </button>
     </div>
   );
 }

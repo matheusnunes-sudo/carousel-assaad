@@ -18,7 +18,7 @@ interface SlideEditorProps {
 export default function SlideEditor({ slide, index, isActive, onClick, onRemove }: SlideEditorProps) {
   const { updateSlide, slides, style } = useCarouselStore();
   const [searching, setSearching] = useState(false);
-  const bodyChars = slide.body.length;
+  const bodyChars   = slide.body.length;
   const isOverLimit = bodyChars > MAX_CHARS;
 
   const handleSearchImage = async () => {
@@ -26,37 +26,33 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
     if (!query) return;
     setSearching(true);
     try {
-      const res = await fetch(`/api/search-image?q=${encodeURIComponent(query)}`);
+      const res  = await fetch(`/api/search-image?q=${encodeURIComponent(query)}`);
       const data = await res.json();
       if (data.imageUrl) updateSlide(slide.id, { imageUrl: data.imageUrl });
-    } catch {
-      // fail silently
-    } finally {
-      setSearching(false);
-    }
+    } catch { /* fail silently */ }
+    finally { setSearching(false); }
   };
 
   return (
     <div
-      className={clsx(
-        "card cursor-pointer transition-all duration-200",
-        isActive && "selected ring-1 ring-assaad-primary"
-      )}
       onClick={onClick}
+      className={clsx("card cursor-pointer transition-all duration-150", isActive && "selected")}
+      style={{ padding: "14px 14px 12px" }}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-assaad-gray-500">Slide {index + 1}</span>
+        <span style={{
+          fontSize: 10, fontWeight: 700, color: "var(--text-tertiary)",
+          letterSpacing: "0.07em", textTransform: "uppercase",
+        }}>
+          Slide {index + 1}
+        </span>
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
           disabled={slides.length <= 1}
           title="Remover slide"
-          className={clsx(
-            "w-5 h-5 rounded flex items-center justify-center text-xs transition-colors",
-            slides.length <= 1
-              ? "text-assaad-gray-200 cursor-not-allowed"
-              : "text-assaad-gray-500 hover:bg-red-50 hover:text-red-500 cursor-pointer"
-          )}
+          className="btn-destructive"
+          style={{ opacity: slides.length <= 1 ? 0.3 : 1 }}
         >
           ×
         </button>
@@ -71,22 +67,32 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
               type="url"
               value={slide.imageUrl ?? ""}
               onChange={(e) => updateSlide(slide.id, { imageUrl: e.target.value })}
-              placeholder="URL da imagem..."
-              className="input-base flex-1 text-xs"
+              placeholder="URL da imagem…"
+              className="input-base flex-1"
+              style={{ fontSize: 12 }}
             />
             <button
               onClick={handleSearchImage}
               disabled={searching}
-              title="Buscar imagem no Unsplash"
-              className="flex-shrink-0 px-2 h-9 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all"
-              style={{ background: "var(--assaad-gradient-primary)" }}
+              title="Buscar no Unsplash"
+              style={{
+                flexShrink: 0, width: 36, height: 36,
+                borderRadius: "var(--r-sm)",
+                background: "var(--blue-tint)",
+                color: "var(--blue)",
+                border: "none", cursor: "pointer", fontSize: 15,
+                opacity: searching ? 0.6 : 1,
+              }}
             >
-              {searching ? "..." : "🔍"}
+              {searching ? "…" : "🔍"}
             </button>
           </div>
           {slide.imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={slide.imageUrl} alt="" className="mt-2 w-full h-20 object-cover rounded-lg" onError={(e) => (e.currentTarget.style.display = "none")} />
+            <img
+              src={slide.imageUrl} alt=""
+              style={{ marginTop: 8, width: "100%", height: 72, objectFit: "cover", borderRadius: "var(--r-sm)" }}
+              onError={(e) => (e.currentTarget.style.display = "none")}
+            />
           )}
         </div>
       )}
@@ -111,11 +117,16 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
           id={`body-${slide.id}`}
           value={slide.body}
           onChange={(e) => updateSlide(slide.id, { body: e.target.value })}
-          placeholder="Texto do slide..."
+          placeholder="Texto do slide…"
           rows={4}
-          className={clsx("input-base resize-none", isOverLimit && "border-red-400")}
+          className="input-base resize-none"
+          style={isOverLimit ? { borderColor: "var(--red)" } : {}}
         />
-        <div className={clsx("text-right text-[10px] mt-0.5", isOverLimit ? "text-red-500 font-medium" : "text-assaad-gray-500")}>
+        <div style={{
+          textAlign: "right", marginTop: 4, fontSize: 10,
+          color: isOverLimit ? "var(--red)" : "var(--text-tertiary)",
+          fontWeight: isOverLimit ? 600 : 400,
+        }}>
           {bodyChars}/{MAX_CHARS}
         </div>
       </div>
@@ -128,7 +139,7 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
           type="text"
           value={slide.footer ?? ""}
           onChange={(e) => updateSlide(slide.id, { footer: e.target.value })}
-          placeholder="Hashtag, CTA..."
+          placeholder="Hashtag, CTA…"
           className="input-base"
         />
       </div>

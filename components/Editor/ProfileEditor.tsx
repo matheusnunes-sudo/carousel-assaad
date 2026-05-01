@@ -4,12 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { useCarouselStore } from "@/lib/store";
 import { loadProfiles, addProfile, removeProfile } from "@/lib/profiles";
 import type { ProfilePreset } from "@/lib/profiles";
-import clsx from "clsx";
 
 export default function ProfileEditor() {
   const { profile, setHandle, setDisplayName, setAvatarUrl, setProfile } = useCarouselStore();
-  const fileRef    = useRef<HTMLInputElement>(null);
-  const newAvtRef  = useRef<HTMLInputElement>(null);
+  const fileRef   = useRef<HTMLInputElement>(null);
+  const newAvtRef = useRef<HTMLInputElement>(null);
 
   const [profiles, setProfiles]       = useState<ProfilePreset[]>([]);
   const [showNewForm, setShowNewForm] = useState(false);
@@ -18,7 +17,6 @@ export default function ProfileEditor() {
   const [newAvatar, setNewAvatar]     = useState("");
 
   useEffect(() => { setProfiles(loadProfiles()); }, []);
-
   const refresh = () => setProfiles(loadProfiles());
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,48 +40,55 @@ export default function ProfileEditor() {
     addProfile({ displayName: newName.trim(), handle: newHandle.trim() || "@usuario", avatarUrl: newAvatar || undefined });
     refresh();
     setShowNewForm(false);
-    setNewName("");
-    setNewHandle("@");
-    setNewAvatar("");
-  };
-
-  const handleDeletePreset = (id: string) => {
-    removeProfile(id);
-    refresh();
-  };
-
-  const handleLoadPreset = (p: ProfilePreset) => {
-    setProfile({ displayName: p.displayName, handle: p.handle, avatarUrl: p.avatarUrl });
+    setNewName(""); setNewHandle("@"); setNewAvatar("");
   };
 
   return (
-    <div className="space-y-5">
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 4 }}>
 
       {/* Active profile */}
-      <div>
-        <p className="label mb-3">Perfil ativo</p>
+      <section>
+        <p className="section-title">Perfil ativo</p>
 
+        {/* Avatar row */}
         <div className="flex items-center gap-3 mb-3">
           {profile.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover border-2 border-assaad-gray-200 flex-shrink-0" />
+            <img
+              src={profile.avatarUrl} alt="Avatar"
+              style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--sep-opaque)", flexShrink: 0 }}
+            />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-assaad-primary-bg flex items-center justify-center text-assaad-primary font-bold text-base flex-shrink-0">
+            <div style={{
+              width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+              background: "var(--blue-tint)", display: "flex", alignItems: "center",
+              justifyContent: "center", fontSize: 18, fontWeight: 700, color: "var(--blue)",
+            }}>
               {(profile.displayName || profile.handle)[0]?.toUpperCase() ?? "U"}
             </div>
           )}
-          <div className="flex gap-1.5">
-            <button onClick={() => fileRef.current?.click()} className="btn-outline text-xs px-3 py-1.5">
+          <div className="flex gap-1.5 flex-wrap">
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="btn-secondary"
+              style={{ fontSize: 11, padding: "5px 12px" }}
+            >
               {profile.avatarUrl ? "Trocar foto" : "Upload foto"}
             </button>
             {profile.avatarUrl && (
-              <button onClick={() => setAvatarUrl("")} className="btn-ghost text-xs px-2 py-1 text-red-400 hover:bg-red-50">Remover</button>
+              <button
+                onClick={() => setAvatarUrl("")}
+                className="btn-destructive"
+                style={{ fontSize: 11 }}
+              >
+                Remover
+              </button>
             )}
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
         </div>
 
-        <div className="space-y-2">
+        {/* Fields */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <input
             type="text"
             value={profile.displayName}
@@ -99,70 +104,96 @@ export default function ProfileEditor() {
             className="input-base"
           />
         </div>
-      </div>
+      </section>
 
-      <hr style={{ borderColor: "var(--assaad-gray-200)" }} />
+      {/* Divider */}
+      <div style={{ height: 1, background: "var(--sep)" }} />
 
       {/* Saved presets */}
-      <div>
-        <p className="label mb-3">Perfis salvos</p>
+      <section>
+        <p className="section-title">Perfis salvos</p>
 
         {profiles.length === 0 && !showNewForm && (
-          <p className="text-xs text-assaad-gray-400 mb-3">Nenhum perfil salvo.</p>
+          <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 10 }}>Nenhum perfil salvo.</p>
         )}
 
-        <div className="space-y-2 mb-3">
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: profiles.length > 0 ? 10 : 0 }}>
           {profiles.map(p => (
-            <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg border border-assaad-gray-200 hover:border-assaad-gray-300 transition-colors">
-              {/* Avatar */}
-              <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-assaad-gray-100 flex items-center justify-center text-xs font-bold" style={{ color: "var(--assaad-primary)" }}>
+            <div
+              key={p.id}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "9px 12px",
+                borderRadius: "var(--r-md)",
+                border: "1px solid var(--sep)",
+                background: "var(--bg-secondary)",
+              }}
+            >
+              <div style={{
+                width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                overflow: "hidden", background: "var(--sep-opaque)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 12, fontWeight: 700, color: "var(--blue)",
+              }}>
                 {p.avatarUrl
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ? <img src={p.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   : (p.displayName[0] ?? "U").toUpperCase()
                 }
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-assaad-dark truncate">{p.displayName}</p>
-                <p className="text-[10px] text-assaad-gray-500 truncate">{p.handle}</p>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.displayName}</p>
+                <p style={{ fontSize: 10, color: "var(--text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.handle}</p>
               </div>
-              <button onClick={() => handleLoadPreset(p)} className="text-[10px] text-assaad-primary font-semibold hover:underline flex-shrink-0 px-2">Usar</button>
-              <button onClick={() => handleDeletePreset(p.id)} className="text-[10px] text-red-400 hover:text-red-600 flex-shrink-0">Excluir</button>
+              <button
+                onClick={() => setProfile({ displayName: p.displayName, handle: p.handle, avatarUrl: p.avatarUrl })}
+                style={{ fontSize: 11, fontWeight: 600, color: "var(--blue)", background: "none", border: "none", cursor: "pointer", flexShrink: 0, padding: "2px 6px" }}
+              >Usar</button>
+              <button
+                onClick={() => { removeProfile(p.id); refresh(); }}
+                className="btn-destructive"
+                style={{ fontSize: 11, flexShrink: 0 }}
+              >Excluir</button>
             </div>
           ))}
         </div>
 
         {showNewForm ? (
-          <div className="border border-assaad-gray-200 rounded-xl p-3 space-y-2">
-            <div className="flex items-center gap-2">
+          <div style={{ border: "1px solid var(--sep-opaque)", borderRadius: "var(--r-md)", background: "var(--bg-secondary)", padding: 14 }}>
+            <div className="flex items-center gap-2 mb-3">
               <div
-                className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center cursor-pointer overflow-hidden border-2 border-dashed"
-                style={{ borderColor: "var(--assaad-gray-300)" }}
+                style={{
+                  width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", overflow: "hidden",
+                  border: "2px dashed var(--sep-opaque)", background: "var(--bg)",
+                }}
                 onClick={() => newAvtRef.current?.click()}
               >
                 {newAvatar
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={newAvatar} alt="" className="w-full h-full object-cover" />
-                  : <span className="text-[9px] text-assaad-gray-400">foto</span>
+                  ? <img src={newAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>foto</span>
                 }
                 <input ref={newAvtRef} type="file" accept="image/*" className="hidden" onChange={handleNewAvatar} />
               </div>
-              <div className="flex-1 space-y-1.5">
-                <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome" className="input-base text-xs" />
-                <input type="text" value={newHandle} onChange={(e) => setNewHandle(e.target.value)} placeholder="@handle" className="input-base text-xs" />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                <input type="text" value={newName}   onChange={(e) => setNewName(e.target.value)}   placeholder="Nome" className="input-base" style={{ fontSize: 12 }} />
+                <input type="text" value={newHandle} onChange={(e) => setNewHandle(e.target.value)} placeholder="@handle" className="input-base" style={{ fontSize: 12 }} />
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowNewForm(false)} className="text-xs text-assaad-gray-500 px-3 py-1 rounded hover:bg-assaad-gray-50">Cancelar</button>
-              <button onClick={handleSavePreset} disabled={!newName.trim()} className="text-xs text-white px-3 py-1 rounded font-semibold disabled:opacity-50" style={{ background: "var(--assaad-gradient-primary)" }}>Salvar</button>
+              <button onClick={() => setShowNewForm(false)} className="btn-ghost" style={{ fontSize: 11, padding: "5px 10px" }}>Cancelar</button>
+              <button onClick={handleSavePreset} disabled={!newName.trim()} className="btn-primary" style={{ fontSize: 11, padding: "5px 12px" }}>Salvar</button>
             </div>
           </div>
         ) : (
-          <button onClick={() => setShowNewForm(true)} className="text-xs text-assaad-primary font-semibold hover:underline">
+          <button
+            onClick={() => setShowNewForm(true)}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 12, fontWeight: 600, color: "var(--blue)" }}
+          >
             + Novo perfil salvo
           </button>
         )}
-      </div>
+      </section>
 
     </div>
   );

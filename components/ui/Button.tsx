@@ -4,7 +4,7 @@ import { ButtonHTMLAttributes, forwardRef } from "react";
 import clsx from "clsx";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "ghost" | "destructive";
   size?: "sm" | "md";
 }
 
@@ -15,11 +15,14 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={clsx(
           {
-            "btn-primary": variant === "primary",
-            "btn-outline": variant === "outline",
-            "btn-ghost": variant === "ghost",
-            "text-xs px-3 py-1.5": size === "sm",
+            "btn-primary":     variant === "primary",
+            "btn-secondary":   variant === "secondary",
+            "btn-ghost":       variant === "ghost",
+            "btn-destructive": variant === "destructive",
+            // legacy: "outline" mapped to secondary
+            "btn-secondary text-sm": variant === ("outline" as string),
           },
+          size === "sm" && "text-xs",
           className
         )}
         {...props}
