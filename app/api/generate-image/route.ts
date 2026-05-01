@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const maxDuration = 60;
 
-// Try newest first, fall back to older models if 404
+// Confirmed available image-generation models. Newest/fastest first;
+// fall back to legacy if the newest is temporarily unavailable.
 const MODEL_CANDIDATES = [
   "gemini-3.1-flash-image-preview",
   "gemini-3-pro-image-preview",
-  "gemini-2.5-flash-image-preview",
   "gemini-2.5-flash-image",
-  "gemini-2.0-flash-exp",
 ];
 
 async function tryGenerate(model: string, apiKey: string, prompt: string) {
