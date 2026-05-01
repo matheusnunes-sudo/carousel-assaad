@@ -117,7 +117,7 @@ export default function SlideEditor({ slide, index, isActive, onClick, onRemove 
           onMouseEnter={(e) => { if (!busy) e.currentTarget.style.background = "var(--blue-hover)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "var(--blue)"; }}
         >
-          {generating ? <Spinner white /> : "🍌"} Gerar imagem com IA
+          {generating ? <Spinner white /> : "✨"} Gerar imagem com IA
         </button>
 
         {/* Error message */}
