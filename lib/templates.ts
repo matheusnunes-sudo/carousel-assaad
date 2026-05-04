@@ -3,6 +3,7 @@ import type { CarouselStyle } from "@/types/carousel";
 import { DEFAULT_FONT_SIZE } from "@/types/carousel";
 
 export const TWITTER_DARK_STYLE: CarouselStyle = {
+  format: "twitter",
   backgroundColor: "#15202B",
   textColor: "#FFFFFF",
   fontSize: DEFAULT_FONT_SIZE,
@@ -12,6 +13,7 @@ export const TWITTER_DARK_STYLE: CarouselStyle = {
 };
 
 export const TWITTER_LIGHT_STYLE: CarouselStyle = {
+  format: "twitter",
   backgroundColor: "#FFFFFF",
   textColor: "#0F1419",
   fontSize: DEFAULT_FONT_SIZE,
