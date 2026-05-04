@@ -1,3 +1,5 @@
+export type CarouselFormat = "twitter" | "instagram";
+
 export interface Slide {
   id: string;
   title?: string;
@@ -8,6 +10,7 @@ export interface Slide {
 }
 
 export interface CarouselStyle {
+  format: CarouselFormat;
   backgroundColor: string;
   textColor: string;
   fontSize: number;       // body font size in px (preview CSS scale)

@@ -2,6 +2,8 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import type { Slide, CarouselStyle, UserProfile } from "@/types/carousel";
 import { getFontSizes } from "@/types/carousel";
+import { getNarrativeRole } from "@/lib/instagramSlide";
+import { drawInstagramSlide } from "@/lib/instagramExport";
 
 const PADDING = 128; // 64px * 2x retina
 
@@ -61,6 +63,13 @@ async function renderSlide(
   const canvas = document.createElement("canvas");
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext("2d")!;
+
+  // ── Instagram (Assaad) format: dispatch to dedicated renderer ──────────────
+  if (style.format === "instagram") {
+    const role = getNarrativeRole(index, total);
+    await drawInstagramSlide(ctx, slide, role, profile, index, total, style.showSlideNumber);
+    return canvas;
+  }
 
   // Font sizes at 2x canvas scale
   const previewSizes = getFontSizes(style.fontSize);

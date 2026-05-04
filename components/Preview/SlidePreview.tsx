@@ -3,6 +3,7 @@
 import { CSSProperties, forwardRef } from "react";
 import type { Slide, CarouselStyle, UserProfile } from "@/types/carousel";
 import { getFontSizes, FONT_FAMILY } from "@/types/carousel";
+import InstagramSlidePreview from "./InstagramSlidePreview";
 
 interface SlidePreviewProps {
   slide: Slide;
@@ -14,10 +15,17 @@ interface SlidePreviewProps {
 
 const SlidePreview = forwardRef<HTMLDivElement, SlidePreviewProps>(
   ({ slide, style, profile, index, total }, _ref) => {
+
+    // ── Instagram (Assaad brand) format ────────────────────────────────────
+    if (style.format === "instagram") {
+      return <InstagramSlidePreview slide={slide} style={style} profile={profile} index={index} total={total} />;
+    }
+
+    // ── Twitter Thread (default/legacy) format ─────────────────────────────
     const { width, height } = style.dimensions;
     const fs  = getFontSizes(style.fontSize);
-    const isGradient = style.backgroundColor.startsWith("linear-gradient");
-    const hasImage   = style.withImages;
+    const isGradient  = style.backgroundColor.startsWith("linear-gradient");
+    const hasImage    = style.withImages;
     const imageHeight = Math.round(height * 0.35);
 
     const container: CSSProperties = {

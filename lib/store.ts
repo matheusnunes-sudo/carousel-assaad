@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
-import type { Slide, CarouselStyle, UserProfile } from "@/types/carousel";
+import type { Slide, CarouselStyle, UserProfile, CarouselFormat } from "@/types/carousel";
 import { DEFAULT_FONT_SIZE } from "@/types/carousel";
 
 interface CarouselStore {
@@ -22,6 +22,7 @@ interface CarouselStore {
   setActiveSlide:(id: string | null) => void;
 
   // Style actions
+  setFormat:         (format: CarouselFormat) => void;
   setFontSize:       (size: number) => void;
   setShowSlideNumber:(show: boolean) => void;
   setDimensions:     (width: number, height: number) => void;
@@ -34,6 +35,7 @@ interface CarouselStore {
 }
 
 const defaultStyle: CarouselStyle = {
+  format: "twitter",
   backgroundColor: "#15202B",
   textColor: "#FFFFFF",
   fontSize: DEFAULT_FONT_SIZE,
@@ -61,9 +63,7 @@ export const useCarouselStore = create<CarouselStore>((set) => ({
   setProfile: (profile) => set({ profile }),
 
   addSlide: () =>
-    set((state) => ({
-      slides: [...state.slides, createSlide(state.slides.length)],
-    })),
+    set((state) => ({ slides: [...state.slides, createSlide(state.slides.length)] })),
 
   removeSlide: (id) =>
     set((state) => {
@@ -92,6 +92,9 @@ export const useCarouselStore = create<CarouselStore>((set) => ({
     }),
 
   setActiveSlide: (id) => set({ activeSlideId: id }),
+
+  setFormat: (format) =>
+    set((state) => ({ style: { ...state.style, format } })),
 
   setFontSize: (size) =>
     set((state) => ({ style: { ...state.style, fontSize: size } })),

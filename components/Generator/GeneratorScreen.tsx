@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
-import type { Slide, CarouselStyle, UserProfile } from "@/types/carousel";
+import type { Slide, CarouselStyle, UserProfile, CarouselFormat } from "@/types/carousel";
 import { DEFAULT_FONT_SIZE } from "@/types/carousel";
 import { parseContent } from "@/lib/parseContent";
 import { loadProfiles, addProfile, removeProfile } from "@/lib/profiles";
@@ -14,13 +14,25 @@ interface Props {
   onCreated: (slides: Slide[], style: CarouselStyle, profile: UserProfile) => void;
 }
 
+const ASSAAD_HANDLE_DEFAULT = "@plataformaassaad";
+
 export default function GeneratorScreen({ onCreated }: Props) {
+  // ── format
+  const [format, setFormat]         = useState<CarouselFormat>("twitter");
+
+  // ── shared
   const [content, setContent]       = useState("");
-  const [mode, setMode]             = useState<"dark" | "light">("dark");
   const [size, setSize]             = useState<1080 | 1350>(1080);
-  const [withImages, setWithImages] = useState(false);
   const [error, setError]           = useState("");
 
+  // ── twitter-only
+  const [mode, setMode]             = useState<"dark" | "light">("dark");
+  const [withImages, setWithImages] = useState(false);
+
+  // ── instagram-only
+  const [igHandle, setIgHandle]     = useState(ASSAAD_HANDLE_DEFAULT);
+
+  // ── profile presets
   const [profiles, setProfiles]       = useState<ProfilePreset[]>([]);
   const [selectedId, setSelectedId]   = useState<string | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
@@ -76,19 +88,41 @@ export default function GeneratorScreen({ onCreated }: Props) {
     if (parsed.length === 0) { setError("Não foi possível identificar slides no texto."); return; }
     setError("");
 
-    const preset = profiles.find(p => p.id === selectedId);
-    const profile: UserProfile = preset
-      ? { displayName: preset.displayName, handle: preset.handle, avatarUrl: preset.avatarUrl }
-      : { displayName: "Usuário", handle: "@usuario" };
+    let profile: UserProfile;
+    let style: CarouselStyle;
 
-    const style: CarouselStyle = {
-      backgroundColor: mode === "dark" ? "#15202B" : "#FFFFFF",
-      textColor:       mode === "dark" ? "#FFFFFF"  : "#0F1419",
-      fontSize:        DEFAULT_FONT_SIZE,
-      showSlideNumber: true,
-      withImages,
-      dimensions: { width: 1080, height: size },
-    };
+    if (format === "instagram") {
+      // Instagram: handle is the brand handle field; bg/textColor/withImages
+      // are kept on the type but ignored by the renderer (each role draws its own).
+      profile = {
+        displayName: "Plataforma Assaad",
+        handle: igHandle.trim().startsWith("@") ? igHandle.trim() : `@${igHandle.trim()}`,
+      };
+      style = {
+        format: "instagram",
+        backgroundColor: "#4F5FE6",
+        textColor:       "#FFFFFF",
+        fontSize:        DEFAULT_FONT_SIZE,
+        showSlideNumber: true,
+        withImages:      false,
+        dimensions:      { width: 1080, height: size },
+      };
+    } else {
+      // Twitter
+      const preset = profiles.find(p => p.id === selectedId);
+      profile = preset
+        ? { displayName: preset.displayName, handle: preset.handle, avatarUrl: preset.avatarUrl }
+        : { displayName: "Usuário", handle: "@usuario" };
+      style = {
+        format: "twitter",
+        backgroundColor: mode === "dark" ? "#15202B" : "#FFFFFF",
+        textColor:       mode === "dark" ? "#FFFFFF"  : "#0F1419",
+        fontSize:        DEFAULT_FONT_SIZE,
+        showSlideNumber: true,
+        withImages,
+        dimensions:      { width: 1080, height: size },
+      };
+    }
 
     const slides: Slide[] = parsed.map((p, i) => ({
       id:     uuidv4(),
@@ -102,6 +136,7 @@ export default function GeneratorScreen({ onCreated }: Props) {
   };
 
   const isDark = mode === "dark";
+  const isInstagram = format === "instagram";
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg-secondary)" }}>
@@ -123,10 +158,7 @@ export default function GeneratorScreen({ onCreated }: Props) {
 
       {/* Hero */}
       <header className="flex flex-col items-center text-center pt-14 pb-8 px-4">
-        <h1
-          className="font-bold mb-3"
-          style={{ fontSize: "clamp(34px,5vw,52px)", lineHeight: 1.05, letterSpacing: "-0.03em", color: "var(--text-primary)" }}
-        >
+        <h1 className="font-bold mb-3" style={{ fontSize: "clamp(34px,5vw,52px)", lineHeight: 1.05, letterSpacing: "-0.03em", color: "var(--text-primary)" }}>
           Crie seu carrossel
         </h1>
         <p style={{ fontSize: 16, color: "var(--text-secondary)", letterSpacing: "-0.01em", maxWidth: 380 }}>
@@ -146,6 +178,31 @@ export default function GeneratorScreen({ onCreated }: Props) {
             padding: "36px 32px",
           }}
         >
+
+          {/* ── Format selector (FIRST) ───────────────────────────────── */}
+          <section>
+            <p className="section-title">Formato</p>
+            <div className="seg-ctrl" style={{ width: "100%" }}>
+              <button
+                onClick={() => setFormat("twitter")}
+                className={clsx("tab flex-1 text-center", !isInstagram && "active")}
+              >
+                𝕏 Twitter Thread
+              </button>
+              <button
+                onClick={() => setFormat("instagram")}
+                className={clsx("tab flex-1 text-center", isInstagram && "active")}
+              >
+                📸 Carrossel Instagram
+              </button>
+            </div>
+            <p style={{ marginTop: 6, fontSize: 11, color: "var(--text-tertiary)" }}>
+              {isInstagram
+                ? "Marca Assaad — cada slide com visual narrativo (Gancho → Dado → Problema → Solução → Features → Prova → CTA)."
+                : "Estilo Twitter/X — fundo único, avatar, handle e texto."}
+            </p>
+          </section>
+
           {/* Content textarea */}
           <section>
             <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8, letterSpacing: "-0.01em" }}>
@@ -165,20 +222,22 @@ export default function GeneratorScreen({ onCreated }: Props) {
             </p>
           </section>
 
-          {/* Options */}
+          {/* Options grid */}
           <section className="grid grid-cols-2 gap-4">
 
-            {/* Mode */}
-            <div>
-              <p className="section-title">Modo</p>
-              <div className="seg-ctrl" style={{ width: "100%" }}>
-                <button onClick={() => setMode("dark")}  className={clsx("tab flex-1 text-center", isDark  && "active")}>🌙 Dark</button>
-                <button onClick={() => setMode("light")} className={clsx("tab flex-1 text-center", !isDark && "active")}>☀️ Light</button>
+            {/* Mode (twitter only) */}
+            {!isInstagram && (
+              <div>
+                <p className="section-title">Modo</p>
+                <div className="seg-ctrl" style={{ width: "100%" }}>
+                  <button onClick={() => setMode("dark")}  className={clsx("tab flex-1 text-center", isDark  && "active")}>🌙 Dark</button>
+                  <button onClick={() => setMode("light")} className={clsx("tab flex-1 text-center", !isDark && "active")}>☀️ Light</button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Size */}
-            <div>
+            <div className={isInstagram ? "col-span-2" : ""}>
               <p className="section-title">Tamanho</p>
               <div className="seg-ctrl" style={{ width: "100%" }}>
                 {([1080, 1350] as const).map((s) => (
@@ -189,104 +248,124 @@ export default function GeneratorScreen({ onCreated }: Props) {
               </div>
             </div>
 
-            {/* Images */}
-            <div className="col-span-2">
-              <p className="section-title">Imagens</p>
-              <div className="seg-ctrl" style={{ width: "100%" }}>
-                <button onClick={() => setWithImages(false)} className={clsx("tab flex-1 text-center", !withImages && "active")}>Só texto</button>
-                <button onClick={() => setWithImages(true)}  className={clsx("tab flex-1 text-center", withImages  && "active")}>✨ Com imagens (IA)</button>
+            {/* Images (twitter only) */}
+            {!isInstagram && (
+              <div className="col-span-2">
+                <p className="section-title">Imagens</p>
+                <div className="seg-ctrl" style={{ width: "100%" }}>
+                  <button onClick={() => setWithImages(false)} className={clsx("tab flex-1 text-center", !withImages && "active")}>Só texto</button>
+                  <button onClick={() => setWithImages(true)}  className={clsx("tab flex-1 text-center", withImages  && "active")}>✨ Com imagens (IA)</button>
+                </div>
+                {withImages && (
+                  <p style={{ marginTop: 6, fontSize: 11, color: "var(--text-tertiary)" }}>
+                    Imagens geradas com IA para cada slide.
+                  </p>
+                )}
               </div>
-              {withImages && (
+            )}
+
+            {/* Handle (instagram only) */}
+            {isInstagram && (
+              <div className="col-span-2">
+                <p className="section-title">Handle</p>
+                <input
+                  type="text"
+                  value={igHandle}
+                  onChange={(e) => setIgHandle(e.target.value)}
+                  placeholder="@plataformaassaad"
+                  className="input-base"
+                />
                 <p style={{ marginTop: 6, fontSize: 11, color: "var(--text-tertiary)" }}>
-                  Imagens geradas com IA (Nano Banana) para cada slide.
+                  Aparece no canto superior esquerdo de cada slide.
                 </p>
-              )}
-            </div>
+              </div>
+            )}
           </section>
 
-          {/* Separator */}
           <div style={{ height: 1, background: "var(--sep)" }} />
 
-          {/* Profile */}
-          <section>
-            <p className="section-title">Perfil</p>
+          {/* Profile (twitter only) */}
+          {!isInstagram && (
+            <section>
+              <p className="section-title">Perfil</p>
 
-            {profiles.length === 0 && !showNewForm && (
-              <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 10 }}>Nenhum perfil salvo.</p>
-            )}
+              {profiles.length === 0 && !showNewForm && (
+                <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 10 }}>Nenhum perfil salvo.</p>
+              )}
 
-            {profiles.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {profiles.map((p) => (
-                  <div
-                    key={p.id}
-                    onClick={() => setSelectedId(p.id)}
-                    className="flex items-center gap-2 cursor-pointer relative group"
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "var(--r-md)",
-                      border: selectedId === p.id ? "2px solid var(--blue)" : "1px solid var(--sep-opaque)",
-                      background: selectedId === p.id ? "rgba(0,102,204,0.05)" : "var(--bg-secondary)",
-                      boxShadow: selectedId === p.id ? "0 0 0 3px rgba(0,102,204,0.1)" : "none",
-                      transition: "all 0.15s",
-                    }}
-                  >
+              {profiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {profiles.map((p) => (
                     <div
-                      className="w-7 h-7 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center text-xs font-bold"
-                      style={{ background: "var(--sep-opaque)", color: "var(--blue)" }}
+                      key={p.id}
+                      onClick={() => setSelectedId(p.id)}
+                      className="flex items-center gap-2 cursor-pointer relative group"
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "var(--r-md)",
+                        border: selectedId === p.id ? "2px solid var(--blue)" : "1px solid var(--sep-opaque)",
+                        background: selectedId === p.id ? "rgba(0,102,204,0.05)" : "var(--bg-secondary)",
+                        boxShadow: selectedId === p.id ? "0 0 0 3px rgba(0,102,204,0.1)" : "none",
+                        transition: "all 0.15s",
+                      }}
                     >
-                      {p.avatarUrl
-                        ? <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" />
-                        : (p.displayName[0] ?? "U").toUpperCase()
-                      }
+                      <div
+                        className="w-7 h-7 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center text-xs font-bold"
+                        style={{ background: "var(--sep-opaque)", color: "var(--blue)" }}
+                      >
+                        {p.avatarUrl
+                          ? <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          : (p.displayName[0] ?? "U").toUpperCase()
+                        }
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold truncate max-w-[100px]" style={{ color: "var(--text-primary)" }}>{p.displayName}</p>
+                        <p className="text-[10px] truncate max-w-[100px]" style={{ color: "var(--text-tertiary)" }}>{p.handle}</p>
+                      </div>
+                      <button
+                        onClick={(e) => handleDeleteProfile(p.id, e)}
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-white text-[9px] hidden group-hover:flex items-center justify-center"
+                        style={{ background: "var(--red)" }}
+                      >×</button>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold truncate max-w-[100px]" style={{ color: "var(--text-primary)" }}>{p.displayName}</p>
-                      <p className="text-[10px] truncate max-w-[100px]" style={{ color: "var(--text-tertiary)" }}>{p.handle}</p>
-                    </div>
-                    <button
-                      onClick={(e) => handleDeleteProfile(p.id, e)}
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-white text-[9px] hidden group-hover:flex items-center justify-center"
-                      style={{ background: "var(--red)" }}
-                    >×</button>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
 
-            {showNewForm ? (
-              <div style={{ border: "1px solid var(--sep-opaque)", borderRadius: "var(--r-md)", background: "var(--bg-secondary)", padding: 16 }}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div
-                    className="w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center cursor-pointer overflow-hidden"
-                    style={{ border: "2px dashed var(--sep-opaque)", background: "var(--bg)" }}
-                    onClick={() => avatarRef.current?.click()}
-                  >
-                    {newAvatar
-                      ? <img src={newAvatar} alt="" className="w-full h-full object-cover" />
-                      : <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>foto</span>
-                    }
-                    <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
+              {showNewForm ? (
+                <div style={{ border: "1px solid var(--sep-opaque)", borderRadius: "var(--r-md)", background: "var(--bg-secondary)", padding: 16 }}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div
+                      className="w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center cursor-pointer overflow-hidden"
+                      style={{ border: "2px dashed var(--sep-opaque)", background: "var(--bg)" }}
+                      onClick={() => avatarRef.current?.click()}
+                    >
+                      {newAvatar
+                        ? <img src={newAvatar} alt="" className="w-full h-full object-cover" />
+                        : <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>foto</span>
+                      }
+                      <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-2">
+                      <input type="text" value={newName}   onChange={(e) => setNewName(e.target.value)}   placeholder="Nome de exibição" className="input-base text-sm" />
+                      <input type="text" value={newHandle} onChange={(e) => setNewHandle(e.target.value)} placeholder="@handle"          className="input-base text-sm" />
+                    </div>
                   </div>
-                  <div className="flex-1 flex flex-col gap-2">
-                    <input type="text" value={newName}   onChange={(e) => setNewName(e.target.value)}   placeholder="Nome de exibição" className="input-base text-sm" />
-                    <input type="text" value={newHandle} onChange={(e) => setNewHandle(e.target.value)} placeholder="@handle"          className="input-base text-sm" />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setShowNewForm(false)} className="btn-ghost text-xs" style={{ padding: "6px 12px" }}>Cancelar</button>
+                    <button onClick={handleSaveProfile} disabled={!newName.trim()} className="btn-primary text-xs" style={{ padding: "6px 14px" }}>Salvar perfil</button>
                   </div>
                 </div>
-                <div className="flex gap-2 justify-end">
-                  <button onClick={() => setShowNewForm(false)} className="btn-ghost text-xs" style={{ padding: "6px 12px" }}>Cancelar</button>
-                  <button onClick={handleSaveProfile} disabled={!newName.trim()} className="btn-primary text-xs" style={{ padding: "6px 14px" }}>Salvar perfil</button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowNewForm(true)}
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 12, fontWeight: 600, color: "var(--blue)" }}
-              >
-                + Novo perfil
-              </button>
-            )}
-          </section>
+              ) : (
+                <button
+                  onClick={() => setShowNewForm(true)}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 12, fontWeight: 600, color: "var(--blue)" }}
+                >
+                  + Novo perfil
+                </button>
+              )}
+            </section>
+          )}
 
           {/* Error */}
           {error && (
